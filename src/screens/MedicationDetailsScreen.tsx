@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Switch } from 'react-native';
 import { styled } from 'nativewind';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { Medication, medicationService } from '../services/medicationService';
+import { notificationService } from '../services/notificationService';
 import { format, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +34,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
   const [medication, setMedication] = useState<Medication | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const fetchMedication = async () => {
     try {
@@ -51,7 +53,62 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
 
   useEffect(() => {
     fetchMedication();
+    setupNotifications();
+    return () => {
+      if (medication) {
+        notificationService.cancelMedicationReminder(medication.id);
+      }
+    };
   }, [medicationId]);
+
+  useEffect(() => {
+    if (medication) {
+      setupNotifications();
+    }
+  }, [medication]);
+
+  const setupNotifications = async () => {
+    try {
+      const hasPermission = await notificationService.requestPermission();
+      if (hasPermission && medication) {
+        // Schedule notifications for each time
+        for (const time of medication.times) {
+          await notificationService.scheduleMedicationReminder(
+            medication.id,
+            medication.name,
+            time
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error setting up notifications:', error);
+      setError('Failed to set up medication reminders');
+    }
+  };
+
+  const toggleNotifications = async (enabled: boolean) => {
+    try {
+      if (enabled) {
+        if (medication) {
+          for (const time of medication.times) {
+            await notificationService.scheduleMedicationReminder(
+              medication.id,
+              medication.name,
+              time
+            );
+          }
+        }
+      } else {
+        if (medication) {
+          await notificationService.cancelMedicationReminder(medication.id);
+        }
+      }
+      setNotificationsEnabled(enabled);
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+      setError('Error updating notification settings. Please try again.');
+    }
+  };
 
   const handleTakeMedication = async (time: string) => {
     try {
@@ -68,6 +125,8 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
 
   const handleDeleteMedication = async () => {
     try {
+      // Cancel all notifications for this medication before deleting
+      await notificationService.cancelMedicationReminder(medicationId);
       await medicationService.deleteMedication(medicationId);
       navigation.goBack();
     } catch (error) {
@@ -244,6 +303,23 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
                 );
               })}
             </StyledView>
+          </StyledView>
+
+          <StyledView className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <StyledView className="flex-row items-center justify-between mb-4">
+              <StyledText className="text-lg font-semibold text-gray-900">Reminders</StyledText>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{ false: '#D1D5DB', true: '#3B82F6' }}
+                thumbColor={notificationsEnabled ? '#2563EB' : '#9CA3AF'}
+              />
+            </StyledView>
+            <StyledText className="text-sm text-gray-500">
+              {notificationsEnabled 
+                ? 'You will receive notifications at scheduled times'
+                : 'Notifications are disabled'}
+            </StyledText>
           </StyledView>
 
           <StyledTouchableOpacity
