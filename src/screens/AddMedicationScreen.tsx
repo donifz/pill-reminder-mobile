@@ -94,6 +94,15 @@ export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) =>
         startDate: formatDate(start),
         endDate: formatDate(end),
       });
+      
+      // Reset form
+      setName('');
+      setDose('');
+      setTimes(['09:00']);
+      setDuration('7');
+      setStartDate(new Date());
+      
+      // Go back to previous screen
       navigation.goBack();
     } catch (err: any) {
       console.error('Add medication error:', err);
