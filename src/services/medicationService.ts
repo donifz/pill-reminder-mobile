@@ -10,6 +10,10 @@ export type Medication = {
   times: string[];
   taken: boolean;
   userId: string;
+  startDate: string;
+  endDate: string;
+  duration: number;
+  takenDates: string[];
 };
 
 export type CreateMedicationData = {

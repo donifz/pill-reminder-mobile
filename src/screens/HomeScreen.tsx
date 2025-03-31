@@ -121,9 +121,10 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
         ) : (
           <StyledView className="space-y-4">
             {medications.map((medication) => (
-              <StyledView 
+              <StyledTouchableOpacity 
                 key={medication.id} 
                 className={`bg-white p-4 rounded-xl border ${medication.taken ? 'border-blue-200 bg-blue-50' : 'border-gray-200'} shadow-sm`}
+                onPress={() => navigation.navigate('MedicationDetails', { medicationId: medication.id })}
               >
                 <StyledView className="flex-row justify-between items-start">
                   <StyledView className="flex-1">
@@ -146,19 +147,25 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
                   <StyledView className="flex-row space-x-2">
                     <StyledTouchableOpacity 
                       className={`p-2 rounded-full ${medication.taken ? 'bg-green-100' : 'bg-gray-100'}`}
-                      onPress={() => handleTakeMedication(medication.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleTakeMedication(medication.id);
+                      }}
                     >
                       <StyledText className={medication.taken ? 'text-green-600' : 'text-gray-400'}>✓</StyledText>
                     </StyledTouchableOpacity>
                     <StyledTouchableOpacity 
                       className="p-2 rounded-full bg-gray-100"
-                      onPress={() => handleDeleteMedication(medication.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMedication(medication.id);
+                      }}
                     >
                       <StyledText className="text-gray-600">×</StyledText>
                     </StyledTouchableOpacity>
                   </StyledView>
                 </StyledView>
-              </StyledView>
+              </StyledTouchableOpacity>
             ))}
           </StyledView>
         )}
