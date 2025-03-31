@@ -52,7 +52,18 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
 
   const handleTakeMedication = async (id: string) => {
     try {
-      await medicationService.takeMedication(id);
+      const today = new Date().toISOString().split('T')[0];
+      const medication = medications.find(m => m.id === id);
+      if (!medication) return;
+
+      const currentTime = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      const nextTime = medication.times.find(time => time >= currentTime) || medication.times[0];
+      
+      await medicationService.toggleTaken(id, today, nextTime);
       fetchMedications();
     } catch (error) {
       console.error('Error taking medication:', error);

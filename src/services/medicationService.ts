@@ -1,4 +1,5 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Use the same API_URL as authService
 const API_URL = 'http://10.0.2.2:3001';
@@ -26,6 +27,15 @@ export type CreateMedicationData = {
 };
 
 class MedicationService {
+  private async getAuthToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('token');
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      return null;
+    }
+  }
+
   async getMedications(): Promise<Medication[]> {
     try {
       console.log('Fetching medications from:', `${API_URL}/medications`);
@@ -128,27 +138,17 @@ class MedicationService {
       throw error;
     }
   }
-  async takeMedication(id: string): Promise<void> {
-    try {
-      await axios.delete(`${API_URL}/medications/${id}/take`, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-    } catch (error: any) {
-      console.error('Delete medication error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
-      });
-      throw error;
-    }
+
+  async toggleTaken(id: string, date: string, time: string): Promise<Medication> {
+    const token = await this.getAuthToken();
+    if (!token) throw new Error('No authentication token found');
+
+    const response = await axios.patch<Medication>(`${API_URL}/medications/${id}/toggle`, { date, time }, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
   }
 }
 

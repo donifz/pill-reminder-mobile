@@ -53,7 +53,17 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
 
   const handleTakeMedication = async () => {
     try {
-      await medicationService.takeMedication(medicationId);
+      const today = new Date().toISOString().split('T')[0];
+      if (!medication) return;
+
+      const currentTime = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      const nextTime = medication.times.find(time => time >= currentTime) || medication.times[0];
+      
+      await medicationService.toggleTaken(medication.id, today, nextTime);
       fetchMedication();
     } catch (error) {
       console.error('Error taking medication:', error);
