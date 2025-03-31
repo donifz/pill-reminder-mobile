@@ -4,18 +4,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Use the same API_URL as authService
 const API_URL = 'http://10.0.2.2:3001';
 
-export type Medication = {
+export interface Medication {
   id: string;
   name: string;
   dose: string;
   times: string[];
-  taken: boolean;
-  userId: string;
+  duration: number;
   startDate: string;
   endDate: string;
-  duration: number;
-  takenDates: string[];
-};
+  taken: boolean;
+  takenDates: { date: string; times: string[] }[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export type CreateMedicationData = {
   name: string;
