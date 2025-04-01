@@ -1,8 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiUrl } from '../config';
 
 // Use the same API_URL as authService
-const API_URL = 'http://10.0.2.2:3001';
+const API_URL = getApiUrl();
 
 export interface Medication {
   id: string;

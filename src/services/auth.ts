@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiUrl } from '../config';
 
-const API_URL = 'http://localhost:3001'; // Update this with your backend URL
+const API_URL = getApiUrl(); // Update this with your backend URL
 
 export interface User {
   id: string;

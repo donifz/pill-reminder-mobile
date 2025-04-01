@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { getApiUrl } from '../config';
 
 // For Android emulator
-const API_URL = 'http://10.0.2.2:3001';
+const API_URL = getApiUrl();
 // For iOS simulator
 // const API_URL = 'http://localhost:3001';
 // For physical device, use your machine's local IP address:
