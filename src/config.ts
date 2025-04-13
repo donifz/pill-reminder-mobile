@@ -1,9 +1,9 @@
 export const config = {
   development: {
-    apiUrl: 'http://localhost:3001',
+    apiUrl: 'http://13.126.213.177:3000',
   },
   production: {
-    apiUrl: 'https://pill-reminder-backend.onrender.com',
+    apiUrl: 'http://13.126.213.177:3000',
   },
 };
 

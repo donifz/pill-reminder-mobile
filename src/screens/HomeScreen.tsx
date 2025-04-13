@@ -27,6 +27,7 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+console.log(medications,"======================");
 
   const fetchMedications = async () => {
     try {

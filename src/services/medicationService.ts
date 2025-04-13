@@ -28,6 +28,18 @@ export type CreateMedicationData = {
   endDate: string;
 };
 
+export interface MedicationsResponse {
+  userMedications: Medication[];
+  guardianMedications: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    medications: Medication[];
+  }[];
+}
+
 class MedicationService {
   private async getAuthToken(): Promise<string | null> {
     try {
@@ -49,7 +61,12 @@ class MedicationService {
       });
       
       console.log('Medications response:', response.data);
-      return response.data;
+      // Combine user medications and guardian medications into a single array
+      const allMedications = [
+        ...response.data.userMedications,
+        ...response.data.guardianMedications.flatMap(g => g.medications)
+      ];
+      return allMedications;
     } catch (error: any) {
       console.error('Get medications error:', {
         message: error.message,

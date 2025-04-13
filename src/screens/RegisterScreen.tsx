@@ -39,7 +39,10 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
 
     try {
       await register({ name, email, password });
-      navigation.replace('Home');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
     } catch (err) {
       setError('Failed to create account. Please try again.');
     } finally {
