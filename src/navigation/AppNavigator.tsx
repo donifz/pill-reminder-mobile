@@ -5,6 +5,8 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { AddMedicationScreen } from '../screens/AddMedicationScreen';
 import { MedicationDetailsScreen } from '../screens/MedicationDetailsScreen';
+import { GuardianManagementScreen } from '../screens/GuardianManagementScreen';
+import { AcceptGuardianInviteScreen } from '../screens/AcceptGuardianInviteScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from './types';
 
@@ -24,6 +26,8 @@ export const AppNavigator = () => {
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="AddMedication" component={AddMedicationScreen} />
           <Stack.Screen name="MedicationDetails" component={MedicationDetailsScreen} />
+          <Stack.Screen name="GuardianManagement" component={GuardianManagementScreen} />
+          <Stack.Screen name="AcceptGuardianInvite" component={AcceptGuardianInviteScreen} />
         </>
       ) : (
         <>

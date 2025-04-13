@@ -1,187 +1,475 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { styled } from 'nativewind';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  SafeAreaView,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
-import { Medication, medicationService } from '../services/medicationService';
+import { Ionicons } from '@expo/vector-icons';
+import { medicationService, Medication } from '../services/medicationService';
+import { format } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledScrollView = styled(ScrollView);
+type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
-type HomeScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
+const MedicationCard: React.FC<{
+  medication: Medication;
+  onPress: () => void;
+  onTake?: () => void;
+  onDelete?: () => void;
+  isGuardian?: boolean;
+  userName?: string;
+}> = ({ medication, onPress, onTake, onDelete, isGuardian, userName }) => {
+  const formatTime = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.medicationCard, medication.taken && styles.medicationCardTaken]}
+      onPress={onPress}
+    >
+      <View style={styles.medicationCardContent}>
+        <View style={styles.medicationCardHeader}>
+          <View style={styles.medicationCardTitle}>
+            <Text style={styles.medicationName}>{medication.name}</Text>
+            {userName && (
+              <View style={styles.userNameContainer}>
+                <Ionicons name="person-outline" size={16} color="#6B7280" />
+                <Text style={styles.userName}>{userName}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.medicationCardActions}>
+            {onTake && (
+              <TouchableOpacity
+                style={[styles.actionButton, medication.taken && styles.actionButtonTaken]}
+                onPress={onTake}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={24}
+                  color={medication.taken ? '#059669' : '#9CA3AF'}
+                />
+              </TouchableOpacity>
+            )}
+            {!isGuardian && onDelete && (
+              <TouchableOpacity style={styles.actionButton} onPress={onDelete}>
+                <Ionicons name="trash-outline" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+        <Text style={styles.medicationDose}>{medication.dose}</Text>
+        <View style={styles.timesContainer}>
+          {medication.times.map((time, index) => (
+            <View key={index} style={styles.timeBadge}>
+              <Ionicons name="time-outline" size={16} color="#9CA3AF" />
+              <Text style={styles.timeText}>{formatTime(time)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 };
 
-const formatTime = (timeStr: string) => {
-  const [hours, minutes] = timeStr.split(':');
-  const hour = parseInt(hours, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-};
-
-export const HomeScreen = ({ navigation }: HomeScreenProps) => {
-  const [medications, setMedications] = useState<Medication[]>([]);
+export const HomeScreen: React.FC = () => {
+  const [userMedications, setUserMedications] = useState<Medication[]>([]);
+  const [guardianMedications, setGuardianMedications] = useState<{
+    user: { id: string; name: string; email: string };
+    medications: Medication[];
+  }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-console.log(medications,"======================");
+  const [activeTab, setActiveTab] = useState<'user' | 'guardian'>('user');
+  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { user, logout } = useAuth();
 
-  const fetchMedications = async () => {
+  const loadMedications = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
-      const data = await medicationService.getMedications();
-      console.log('Fetched medications:', data);
-      setMedications(data);
-    } catch (error: any) {
-      console.error('Error fetching medications:', error);
-      setError(error.message || 'Error fetching medications. Please try again later.');
+      const response = await medicationService.getMedications();
+      setUserMedications(response.userMedications);
+      setGuardianMedications(response.guardianMedications);
+    } catch (error) {
+      console.error('Error loading medications:', error);
+      Alert.alert('Error', 'Failed to load medications');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Use useFocusEffect to fetch medications when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      fetchMedications();
-    }, [])
+      loadMedications();
+    }, [loadMedications])
   );
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out');
+    }
+  };
 
   const handleTakeMedication = async (id: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const medication = medications.find(m => m.id === id);
-      if (!medication) return;
-
-      const currentTime = new Date().toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      const nextTime = medication.times.find(time => time >= currentTime) || medication.times[0];
-      
-      await medicationService.toggleTaken(id, today, nextTime);
-      fetchMedications();
+      const currentTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+      await medicationService.toggleTaken(id, today, currentTime);
+      loadMedications();
     } catch (error) {
       console.error('Error taking medication:', error);
-      setError('Error taking medication. Please try again later.');
+      Alert.alert('Error', 'Failed to update medication status');
     }
   };
 
   const handleDeleteMedication = async (id: string) => {
     try {
       await medicationService.deleteMedication(id);
-      fetchMedications();
+      loadMedications();
     } catch (error) {
       console.error('Error deleting medication:', error);
-      setError('Error deleting medication. Please try again later.');
+      Alert.alert('Error', 'Failed to delete medication');
     }
   };
 
+  const renderEmptyList = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyText}>
+        No {activeTab === 'user' ? 'medications' : 'guardian medications'} found
+      </Text>
+      {activeTab === 'user' && (
+        <TouchableOpacity
+          style={styles.addFirstButton}
+          onPress={() => navigation.navigate('AddMedication')}
+        >
+          <Text style={styles.addFirstButtonText}>Add your first medication</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   if (loading) {
     return (
-      <StyledView className="flex-1 items-center justify-center bg-gray-50">
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
-      </StyledView>
+      </View>
     );
   }
 
   return (
-    <StyledView className="flex-1 bg-gray-50">
-      <StyledView className="px-4 py-6 bg-white border-b border-gray-200">
-        <StyledText className="text-2xl font-bold text-gray-900">
-          Medications
-        </StyledText>
-      </StyledView>
-      
-      <StyledScrollView className="flex-1 px-4 py-4">
-        {error && (
-          <StyledView className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <StyledText className="text-red-600 text-center">{error}</StyledText>
-          </StyledView>
-        )}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Medications</Text>
+          {user && (
+            <Text style={styles.userName}>Hello, {user.name}</Text>
+          )}
+        </View>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('GuardianManagement')}
+          >
+            <Ionicons name="people-outline" size={24} color="#3B82F6" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={24} color="#3B82F6" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        <StyledTouchableOpacity
-          className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-4"
-          onPress={() => navigation.navigate('AddMedication')}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'user' && styles.activeTab]}
+          onPress={() => setActiveTab('user')}
         >
-          <StyledView className="flex-row items-center justify-between">
-            <StyledView>
-              <StyledText className="text-lg font-medium text-gray-900">
-                Add New Medication
-              </StyledText>
-              <StyledText className="text-sm text-gray-500 mt-1">
-                Track your medications and set reminders
-              </StyledText>
-            </StyledView>
-            <StyledView className="bg-blue-100 p-3 rounded-full">
-              <StyledText className="text-blue-600 text-xl">+</StyledText>
-            </StyledView>
-          </StyledView>
-        </StyledTouchableOpacity>
+          <Text style={[styles.tabText, activeTab === 'user' && styles.activeTabText]}>
+            My Medications
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'guardian' && styles.activeTab]}
+          onPress={() => setActiveTab('guardian')}
+        >
+          <Text style={[styles.tabText, activeTab === 'guardian' && styles.activeTabText]}>
+            Guardian Medications
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {medications.length === 0 ? (
-          <StyledView className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-            <StyledText className="text-gray-500 text-center">
-              No medications added yet. Add your first medication to get started!
-            </StyledText>
-          </StyledView>
-        ) : (
-          <StyledView className="space-y-4">
-            {medications.map((medication) => (
-              <StyledTouchableOpacity 
-                key={medication.id} 
-                className={`bg-white p-4 rounded-xl border ${medication.taken ? 'border-blue-200 bg-blue-50' : 'border-gray-200'} shadow-sm`}
-                onPress={() => navigation.navigate('MedicationDetails', { medicationId: medication.id })}
+      <View style={styles.contentContainer}>
+        {activeTab === 'user' ? (
+          <>
+            <View style={styles.addButtonContainer}>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('AddMedication')}
               >
-                <StyledView className="flex-row justify-between items-start">
-                  <StyledView className="flex-1">
-                    <StyledText className="text-lg font-medium text-gray-900">
-                      {medication.name}
-                    </StyledText>
-                    <StyledText className="text-sm text-gray-500">
-                      {medication.dose}
-                    </StyledText>
-                    <StyledView className="flex-row flex-wrap mt-2">
-                      {medication.times.map((time, index) => (
-                        <StyledView key={index} className="bg-gray-100 px-2 py-1 rounded-md mr-2 mb-2">
-                          <StyledText className="text-sm text-gray-500">
-                            {formatTime(time)}
-                          </StyledText>
-                        </StyledView>
-                      ))}
-                    </StyledView>
-                  </StyledView>
-                  <StyledView className="flex-row space-x-2">
-                    <StyledTouchableOpacity 
-                      className={`p-2 rounded-full ${medication.taken ? 'bg-green-100' : 'bg-gray-100'}`}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleTakeMedication(medication.id);
-                      }}
-                    >
-                      <StyledText className={medication.taken ? 'text-green-600' : 'text-gray-400'}>✓</StyledText>
-                    </StyledTouchableOpacity>
-                    <StyledTouchableOpacity 
-                      className="p-2 rounded-full bg-gray-100"
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleDeleteMedication(medication.id);
-                      }}
-                    >
-                      <StyledText className="text-gray-600">×</StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-                </StyledView>
-              </StyledTouchableOpacity>
-            ))}
-          </StyledView>
+                <Ionicons name="add" size={20} color="#FFFFFF" />
+                <Text style={styles.addButtonText}>Add Medication</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={userMedications}
+              renderItem={({ item }) => (
+                <MedicationCard
+                  medication={item}
+                  onPress={() => navigation.navigate('MedicationDetails', { id: item.id })}
+                  onTake={() => handleTakeMedication(item.id)}
+                  onDelete={() => handleDeleteMedication(item.id)}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              ListEmptyComponent={renderEmptyList}
+            />
+          </>
+        ) : (
+          <ScrollView style={styles.medicationList}>
+            {guardianMedications.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No guardian medications available</Text>
+              </View>
+            ) : (
+              guardianMedications.map((guardianMed) => (
+                <View key={guardianMed.user.id} style={styles.guardianSection}>
+                  <Text style={styles.guardianName}>{guardianMed.user.name}'s Medications</Text>
+                  {guardianMed.medications.map((medication) => (
+                    <MedicationCard
+                      key={medication.id}
+                      medication={medication}
+                      onPress={() => navigation.navigate('MedicationDetails', { id: medication.id })}
+                      onTake={() => handleTakeMedication(medication.id)}
+                      isGuardian
+                      userName={guardianMed.user.name}
+                    />
+                  ))}
+                </View>
+              ))
+            )}
+          </ScrollView>
         )}
-      </StyledScrollView>
-    </StyledView>
+      </View>
+    </SafeAreaView>
   );
-}; 
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitleContainer: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#3B82F6',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  addButtonContainer: {
+    marginBottom: 16,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  addFirstButton: {
+    marginTop: 8,
+  },
+  addFirstButtonText: {
+    color: '#3B82F6',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  listContainer: {
+    flexGrow: 1,
+  },
+  medicationList: {
+    flex: 1,
+  },
+  medicationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  medicationCardTaken: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  medicationCardContent: {
+    padding: 16,
+  },
+  medicationCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  medicationCardTitle: {
+    flex: 1,
+  },
+  medicationName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  userNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  userName: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  medicationCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  actionButtonTaken: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 20,
+  },
+  medicationDose: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  timesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 8,
+  },
+  timeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  timeText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+  guardianSection: {
+    marginBottom: 24,
+  },
+  guardianName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+}); 

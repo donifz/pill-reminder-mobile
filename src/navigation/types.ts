@@ -3,5 +3,8 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   AddMedication: undefined;
-  MedicationDetails: { medicationId: string };
+  MedicationDetails: { id: string };
+  EditMedication: { id: string };
+  GuardianManagement: undefined;
+  AcceptGuardianInvite: { token: string };
 }; 

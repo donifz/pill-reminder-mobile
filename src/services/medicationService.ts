@@ -10,23 +10,13 @@ export interface Medication {
   name: string;
   dose: string;
   times: string[];
-  duration: number;
-  startDate: string;
-  endDate: string;
   taken: boolean;
-  takenDates: { date: string; times: string[] }[];
-  createdAt: string;
-  updatedAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
-
-export type CreateMedicationData = {
-  name: string;
-  dose: string;
-  times: string[];
-  duration: number;
-  startDate: string;
-  endDate: string;
-};
 
 export interface MedicationsResponse {
   userMedications: Medication[];
@@ -40,6 +30,15 @@ export interface MedicationsResponse {
   }[];
 }
 
+export interface CreateMedicationDto {
+  name: string;
+  dose: string;
+  times: string[];
+  duration: number;
+  startDate: string;
+  endDate: string;
+}
+
 class MedicationService {
   private async getAuthToken(): Promise<string | null> {
     try {
@@ -50,23 +49,22 @@ class MedicationService {
     }
   }
 
-  async getMedications(): Promise<Medication[]> {
+  async getMedications(): Promise<MedicationsResponse> {
     try {
+      const token = await this.getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
       console.log('Fetching medications from:', `${API_URL}/medications`);
-      const response = await axios.get(`${API_URL}/medications`, {
+      const response = await axios.get<MedicationsResponse>(`${API_URL}/medications`, {
         timeout: 10000,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
       
       console.log('Medications response:', response.data);
-      // Combine user medications and guardian medications into a single array
-      const allMedications = [
-        ...response.data.userMedications,
-        ...response.data.guardianMedications.flatMap(g => g.medications)
-      ];
-      return allMedications;
+      return response.data;
     } catch (error: any) {
       console.error('Get medications error:', {
         message: error.message,
@@ -84,52 +82,69 @@ class MedicationService {
 
   async getMedicationById(id: string): Promise<Medication> {
     try {
-      console.log('Fetching medication details:', `${API_URL}/medications/${id}`);
-      const response = await axios.get(`${API_URL}/medications/${id}`, {
-        timeout: 10000,
+      const token = await this.getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
+      const response = await axios.get<Medication>(`${API_URL}/medications/${id}`, {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
-      
-      console.log('Medication details response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Get medication details error:', {
+      console.error('Get medication by id error:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
+        status: error.response?.status
       });
       throw error;
     }
   }
 
-  async createMedication(data: CreateMedicationData): Promise<Medication> {
+  async createMedication(dto: CreateMedicationDto): Promise<Medication> {
     try {
-      const response = await axios.post(`${API_URL}/medications`, data, {
-        timeout: 10000,
+      const token = await this.getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
+      const response = await axios.post<Medication>(`${API_URL}/medications`, dto, {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
-      
-      console.log('Create medication response:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('Create medication error:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
+        status: error.response?.status
+      });
+      throw error;
+    }
+  }
+
+  async toggleTaken(id: string, date: string, time: string): Promise<Medication> {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
+      const response = await axios.patch<Medication>(
+        `${API_URL}/medications/${id}/toggle`,
+        { date, time },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Toggle taken error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
       });
       throw error;
     }
@@ -137,37 +152,23 @@ class MedicationService {
 
   async deleteMedication(id: string): Promise<void> {
     try {
+      const token = await this.getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
       await axios.delete(`${API_URL}/medications/${id}`, {
-        timeout: 10000,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
     } catch (error: any) {
       console.error('Delete medication error:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
+        status: error.response?.status
       });
       throw error;
     }
-  }
-
-  async toggleTaken(id: string, date: string, time: string): Promise<Medication> {
-    const token = await this.getAuthToken();
-    if (!token) throw new Error('No authentication token found');
-
-    const response = await axios.patch<Medication>(`${API_URL}/medications/${id}/toggle`, { date, time }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return response.data;
   }
 }
 

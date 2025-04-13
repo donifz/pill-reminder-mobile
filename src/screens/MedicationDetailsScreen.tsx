@@ -30,7 +30,7 @@ const formatTime = (timeStr: string) => {
 };
 
 export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetailsScreenProps) => {
-  const { medicationId } = route.params;
+  const { id } = route.params;
   const [medication, setMedication] = useState<Medication | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
     try {
       setLoading(true);
       setError(null);
-      const data = await medicationService.getMedicationById(medicationId);
+      const data = await medicationService.getMedicationById(id);
       console.log('Fetched medication details:', data);
       setMedication(data);
     } catch (error: any) {
@@ -59,7 +59,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
         notificationService.cancelMedicationReminder(medication.id);
       }
     };
-  }, [medicationId]);
+  }, [id]);
 
   useEffect(() => {
     if (medication) {
@@ -126,8 +126,8 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
   const handleDeleteMedication = async () => {
     try {
       // Cancel all notifications for this medication before deleting
-      await notificationService.cancelMedicationReminder(medicationId);
-      await medicationService.deleteMedication(medicationId);
+      await notificationService.cancelMedicationReminder(id);
+      await medicationService.deleteMedication(id);
       navigation.goBack();
     } catch (error) {
       console.error('Error deleting medication:', error);
