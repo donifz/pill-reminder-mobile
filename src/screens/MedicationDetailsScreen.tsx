@@ -9,6 +9,7 @@ import { notificationService } from '../services/notificationService';
 import { format, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -35,6 +36,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const { t } = useTranslation();
 
   const fetchMedication = async () => {
     try {
@@ -179,7 +181,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
             className="flex-row items-center mb-6"
           >
             <Ionicons name="arrow-back" size={16} color="#6B7280" />
-            <StyledText className="text-gray-500 ml-1">Back to medications</StyledText>
+            <StyledText className="text-gray-500 ml-1">{t('medications.backToMedications')}</StyledText>
           </StyledTouchableOpacity>
 
           {error && (
@@ -196,12 +198,12 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
             <StyledView className="flex-row">
               <StyledView className="flex-1 space-y-4">
                 <StyledView>
-                  <StyledText className="text-sm font-medium text-gray-500">Dose</StyledText>
+                  <StyledText className="text-sm font-medium text-gray-500">{t('medications.dose')}</StyledText>
                   <StyledText className="text-lg text-gray-900">{medication.dose}</StyledText>
                 </StyledView>
                 
                 <StyledView>
-                  <StyledText className="text-sm font-medium text-gray-500">Time</StyledText>
+                  <StyledText className="text-sm font-medium text-gray-500">{t('medications.times')}</StyledText>
                   <StyledView className="flex-row items-center">
                     <Ionicons name="time-outline" size={20} color="#9CA3AF" />
                     <StyledText className="text-lg text-gray-900 ml-2">
@@ -211,7 +213,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
                 </StyledView>
 
                 <StyledView>
-                  <StyledText className="text-sm font-medium text-gray-500">Duration</StyledText>
+                  <StyledText className="text-sm font-medium text-gray-500">{t('medications.duration')}</StyledText>
                   <StyledView className="flex-row items-center">
                     <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
                     <StyledText className="text-lg text-gray-900 ml-2">
@@ -222,13 +224,13 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
               </StyledView>
 
               <StyledView className="flex-1">
-                <StyledText className="text-sm font-medium text-gray-500 mb-4">Progress</StyledText>
+                <StyledText className="text-sm font-medium text-gray-500 mb-4">{t('medications.progress')}</StyledText>
                 <StyledView className="bg-gray-100 rounded-lg p-4">
                   <StyledView className="items-center">
                     <StyledText className="text-3xl font-bold text-blue-600">
                       {getProgress()}%
                     </StyledText>
-                    <StyledText className="text-sm text-gray-500">completed</StyledText>
+                    <StyledText className="text-sm text-gray-500">{t('common.completed')}</StyledText>
                   </StyledView>
                 </StyledView>
               </StyledView>
@@ -236,7 +238,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
           </StyledView>
 
           <StyledView className="bg-white rounded-2xl shadow-lg p-6">
-            <StyledText className="text-xl font-semibold text-gray-900 mb-6">Calendar</StyledText>
+            <StyledText className="text-xl font-semibold text-gray-900 mb-6">{t('medications.calendar')}</StyledText>
             <StyledView className="flex-row flex-wrap justify-between">
               {days.map((day) => {
                 const isToday = isSameDay(day, new Date());
@@ -270,7 +272,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
           </StyledView>
 
           <StyledView className="mt-6 mb-4">
-            <StyledText className="text-lg font-semibold text-gray-900 mb-4">Today's Schedule</StyledText>
+            <StyledText className="text-lg font-semibold text-gray-900 mb-4">{t('medications.todaysSchedule')}</StyledText>
             <StyledView className="space-y-3">
               {medication.times.map((time) => {
                 const isTaken = isTimeTaken(new Date(), time);
@@ -297,7 +299,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
                     <StyledText className={`text-sm ${
                       isTaken ? 'text-green-600' : 'text-blue-600'
                     }`}>
-                      {isTaken ? 'Taken' : 'Take Now'}
+                      {isTaken ? t('common.taken') : t('common.takeNow')}
                     </StyledText>
                   </StyledTouchableOpacity>
                 );
@@ -307,7 +309,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
 
           <StyledView className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <StyledView className="flex-row items-center justify-between mb-4">
-              <StyledText className="text-lg font-semibold text-gray-900">Reminders</StyledText>
+              <StyledText className="text-lg font-semibold text-gray-900">{t('medications.reminders')}</StyledText>
               <Switch
                 value={notificationsEnabled}
                 onValueChange={toggleNotifications}
@@ -317,8 +319,8 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
             </StyledView>
             <StyledText className="text-sm text-gray-500">
               {notificationsEnabled 
-                ? 'You will receive notifications at scheduled times'
-                : 'Notifications are disabled'}
+                ? t('medications.notificationsEnabled')
+                : t('medications.notificationsDisabled')}
             </StyledText>
           </StyledView>
 
@@ -327,7 +329,7 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
             className="py-4 rounded-xl bg-red-100 mb-4"
           >
             <StyledText className="text-red-600 text-center font-semibold">
-              Delete Medication
+              {t('medications.delete')}
             </StyledText>
           </StyledTouchableOpacity>
         </StyledView>

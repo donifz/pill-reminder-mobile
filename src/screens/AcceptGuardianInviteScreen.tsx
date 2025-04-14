@@ -5,6 +5,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { guardianService } from '../services/guardianService';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 type AcceptGuardianInviteScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'AcceptGuardianInvite'>;
@@ -12,6 +13,7 @@ type AcceptGuardianInviteScreenProps = {
 };
 
 export const AcceptGuardianInviteScreen = ({ navigation, route }: AcceptGuardianInviteScreenProps) => {
+  const { t } = useTranslation();
   const { token } = route.params;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,12 +50,12 @@ export const AcceptGuardianInviteScreen = ({ navigation, route }: AcceptGuardian
         {loading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>Accepting invitation...</Text>
+            <Text style={styles.loadingText}>{t('guardian.acceptingInvitation')}</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContent}>
             <Ionicons name="close-circle-outline" size={64} color="#EF4444" />
-            <Text style={styles.title}>Failed to Accept Invitation</Text>
+            <Text style={styles.title}>{t('guardian.failedToAccept')}</Text>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity
               onPress={() => navigation.reset({
@@ -62,15 +64,15 @@ export const AcceptGuardianInviteScreen = ({ navigation, route }: AcceptGuardian
               })}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Go to Home</Text>
+              <Text style={styles.buttonText}>{t('common.goToHome')}</Text>
             </TouchableOpacity>
           </View>
         ) : success ? (
           <View style={styles.centerContent}>
             <Ionicons name="checkmark-circle-outline" size={64} color="#10B981" />
-            <Text style={styles.title}>Invitation Accepted!</Text>
+            <Text style={styles.title}>{t('guardian.invitationAccepted')}</Text>
             <Text style={styles.successText}>
-              You will be redirected to the home screen shortly.
+              {t('guardian.redirectingToHome')}
             </Text>
           </View>
         ) : null}

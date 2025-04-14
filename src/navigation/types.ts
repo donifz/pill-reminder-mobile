@@ -7,4 +7,5 @@ export type RootStackParamList = {
   EditMedication: { id: string };
   GuardianManagement: undefined;
   AcceptGuardianInvite: { token: string };
+  Settings: undefined;
 }; 

@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Modal,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { medicationService, Medication } from '../services/medicationService';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { languages, changeLanguage } from '../i18n';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -94,8 +97,10 @@ export const HomeScreen: React.FC = () => {
   }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'user' | 'guardian'>('user');
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user, logout } = useAuth();
+  const { t, i18n } = useTranslation();
 
   const loadMedications = useCallback(async () => {
     try {
@@ -152,6 +157,16 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  const handleLanguageChange = async (langCode: string) => {
+    try {
+      await changeLanguage(langCode);
+      setShowLanguageModal(false);
+    } catch (error) {
+      console.error('Error changing language:', error);
+      Alert.alert('Error', 'Failed to change language');
+    }
+  };
+
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>
@@ -180,12 +195,24 @@ export const HomeScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Medications</Text>
+          <Text style={styles.headerTitle}>{t('common.welcome')}</Text>
           {user && (
-            <Text style={styles.userName}>Hello, {user.name}</Text>
+            <Text style={styles.userName}>{t('common.hello')}, {user.name}</Text>
           )}
         </View>
         <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setShowLanguageModal(true)}
+          >
+            <Ionicons name="language-outline" size={24} color="#3B82F6" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color="#3B82F6" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => navigation.navigate('GuardianManagement')}
@@ -201,13 +228,56 @@ export const HomeScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Language Selection Modal */}
+      <Modal
+        visible={showLanguageModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('settings.selectLanguage')}</Text>
+              <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.languageList}>
+              {languages.map((lang) => (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[
+                    styles.languageItem,
+                    i18n.language === lang.code && styles.selectedLanguageItem,
+                  ]}
+                  onPress={() => handleLanguageChange(lang.code)}
+                >
+                  <Text
+                    style={[
+                      styles.languageItemText,
+                      i18n.language === lang.code && styles.selectedLanguageItemText,
+                    ]}
+                  >
+                    {lang.name}
+                  </Text>
+                  {i18n.language === lang.code && (
+                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'user' && styles.activeTab]}
           onPress={() => setActiveTab('user')}
         >
           <Text style={[styles.tabText, activeTab === 'user' && styles.activeTabText]}>
-            My Medications
+            {t('medications.myMedications')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -215,7 +285,7 @@ export const HomeScreen: React.FC = () => {
           onPress={() => setActiveTab('guardian')}
         >
           <Text style={[styles.tabText, activeTab === 'guardian' && styles.activeTabText]}>
-            Guardian Medications
+            {t('medications.guardianMedications')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -229,7 +299,7 @@ export const HomeScreen: React.FC = () => {
                 onPress={() => navigation.navigate('AddMedication')}
               >
                 <Ionicons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.addButtonText}>Add Medication</Text>
+                <Text style={styles.addButtonText}>{t('medications.addMedication')}</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -251,15 +321,15 @@ export const HomeScreen: React.FC = () => {
           <ScrollView style={styles.medicationList}>
             {guardianMedications.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No guardian medications available</Text>
+                <Text style={styles.emptyText}>{t('medications.noGuardianMedications')}</Text>
               </View>
             ) : (
               guardianMedications.map((guardianMed) => (
                 <View key={guardianMed.user.id} style={styles.guardianSection}>
-                  <Text style={styles.guardianName}>{guardianMed.user.name}'s Medications</Text>
+                  <Text style={styles.guardianName}>{guardianMed.user.name} {t('medications.guardiansMedications', { name: guardianMed.user.name })}</Text>
                   {guardianMed.medications.map((medication) => (
                     <MedicationCard
-                key={medication.id} 
+                      key={medication.id}
                       medication={medication}
                       onPress={() => navigation.navigate('MedicationDetails', { id: medication.id })}
                       onTake={() => handleTakeMedication(medication.id)}
@@ -471,5 +541,58 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: '80%',
+    maxWidth: 400,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  languageList: {
+    marginBottom: 10,
+  },
+  languageItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  selectedLanguageItem: {
+    backgroundColor: '#e6f2ff',
+    borderColor: '#3B82F6',
+    borderWidth: 1,
+  },
+  languageItemText: {
+    fontSize: 16,
+  },
+  selectedLanguageItemText: {
+    fontWeight: 'bold',
+    color: '#3B82F6',
   },
 }); 

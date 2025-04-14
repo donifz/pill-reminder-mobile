@@ -4,12 +4,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Guardian, guardianService } from '../services/guardianService';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 type GuardianManagementScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'GuardianManagement'>;
 };
 
 export const GuardianManagementScreen = ({ navigation }: GuardianManagementScreenProps) => {
+  const { t } = useTranslation();
   const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [guardiansFor, setGuardiansFor] = useState<Guardian[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -130,7 +132,7 @@ export const GuardianManagementScreen = ({ navigation }: GuardianManagementScree
       return (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            No {isReceived ? 'received' : 'sent'} invitations
+            {t('guardian.noInvitations', { type: isReceived ? 'received' : 'sent' })}
           </Text>
         </View>
       );
@@ -142,10 +144,10 @@ export const GuardianManagementScreen = ({ navigation }: GuardianManagementScree
           <View key={guardian.id} style={styles.guardianItem}>
             <View style={styles.guardianInfo}>
               <Text style={styles.guardianName}>
-                {isReceived ? guardian.user?.name : guardian.guardian?.email || 'Pending'}
+                {isReceived ? guardian.user?.name : guardian.guardian?.email || t('common.pending')}
               </Text>
               <Text style={styles.guardianEmail}>
-                {isReceived ? guardian.user?.email : 'Invitation sent'}
+                {isReceived ? guardian.user?.email : t('guardian.invitationSent')}
               </Text>
               <View style={styles.statusContainer}>
                 {!guardian.isAccepted ? (
@@ -202,9 +204,9 @@ export const GuardianManagementScreen = ({ navigation }: GuardianManagementScree
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={16} color="#6B7280" />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Guardian Management</Text>
+        <Text style={styles.headerTitle}>{t('guardian.title')}</Text>
       </View>
 
       <ScrollView style={styles.content}>
@@ -215,10 +217,10 @@ export const GuardianManagementScreen = ({ navigation }: GuardianManagementScree
         )}
 
         <View style={styles.inviteContainer}>
-          <Text style={styles.inviteTitle}>Invite Guardian</Text>
+          <Text style={styles.inviteTitle}>{t('guardian.inviteGuardian')}</Text>
           <View style={styles.inviteInputContainer}>
             <TextInput
-              placeholder="Enter guardian's email"
+              placeholder={t('guardian.enterGuardianEmail')}
               value={inviteEmail}
               onChangeText={setInviteEmail}
               style={styles.inviteInput}
@@ -234,7 +236,7 @@ export const GuardianManagementScreen = ({ navigation }: GuardianManagementScree
               {loading ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text style={styles.inviteButtonText}>Invite</Text>
+                <Text style={styles.inviteButtonText}>{t('guardian.invite')}</Text>
               )}
             </TouchableOpacity>
           </View>

@@ -21,16 +21,18 @@
     "axios": "^1.8.4",
     "date-fns": "^4.1.0",
     "expo": "~52.0.41",
+    "expo-notifications": "~0.29.14",
     "expo-status-bar": "~2.0.1",
+    "i18next": "^24.2.3",
     "nativewind": "^2.0.11",
     "postcss": "^8.5.3",
     "react": "18.3.1",
+    "react-i18next": "^15.4.1",
     "react-native": "0.76.7",
     "react-native-reanimated": "^3.17.1",
     "react-native-safe-area-context": "^5.3.0",
     "react-native-screens": "^4.10.0",
-    "tailwindcss": "^3.3.2",
-    "expo-notifications": "~0.29.14"
+    "tailwindcss": "^3.3.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
