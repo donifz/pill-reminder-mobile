@@ -4,6 +4,13 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// Load version properties
+def versionProperties = new Properties()
+def versionPropertiesFile = rootProject.file('app/version.properties')
+if (versionPropertiesFile.exists()) {
+    versionProperties.load(new FileInputStream(versionPropertiesFile))
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -91,8 +98,8 @@ android {
         applicationId 'com.yourcompany.medicationtracker'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        versionCode versionProperties['VERSION_CODE'].toInteger()
+        versionName versionProperties['VERSION_NAME']
     }
     signingConfigs {
         debug {
@@ -172,5 +179,24 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+// Add task to increment version code
+task incrementVersionCode {
+    doLast {
+        if (versionPropertiesFile.exists()) {
+            def currentCode = versionProperties['VERSION_CODE'].toInteger()
+            versionProperties['VERSION_CODE'] = (currentCode + 1).toString()
+            versionProperties.store(new FileOutputStream(versionPropertiesFile), null)
+            println "Incremented version code to ${currentCode + 1}"
+        }
+    }
+}
+
+// Make assembleRelease depend on incrementVersionCode
+tasks.whenTaskAdded { task ->
+    if (task.name == 'assembleRelease') {
+        task.dependsOn incrementVersionCode
     }
 }
