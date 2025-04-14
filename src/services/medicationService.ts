@@ -11,6 +11,10 @@ export interface Medication {
   dose: string;
   times: string[];
   taken: boolean;
+  startDate: string;
+  endDate: string;
+  duration: number;
+  takenDates?: { date: string; times: string[] }[];
   user?: {
     id: string;
     name: string;

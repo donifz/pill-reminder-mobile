@@ -31,13 +31,30 @@ const MedicationCard: React.FC<{
   isGuardian?: boolean;
   userName?: string;
 }> = ({ medication, onPress, onTake, onDelete, isGuardian, userName }) => {
-const formatTime = (timeStr: string) => {
-  const [hours, minutes] = timeStr.split(':');
-  const hour = parseInt(hours, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-};
+  const formatTime = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const getProgress = () => {
+    if (!medication.takenDates) return 0;
+    const totalDays = medication.duration;
+    const takenDays = medication.takenDates.length;
+    return Math.round((takenDays / totalDays) * 100);
+  };
+
+  const getNextDose = () => {
+    const now = new Date();
+    const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
+    const sortedTimes = [...medication.times].sort();
+    return sortedTimes.find(time => time > currentTime) || sortedTimes[0];
+  };
+
+  const progress = getProgress();
+  const nextDose = getNextDose();
 
   return (
     <TouchableOpacity
@@ -76,13 +93,45 @@ const formatTime = (timeStr: string) => {
           </View>
         </View>
         <Text style={styles.medicationDose}>{medication.dose}</Text>
+        
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          </View>
+          <Text style={styles.progressText}>{progress}% overall progress</Text>
+        </View>
+
         <View style={styles.timesContainer}>
-          {medication.times.map((time, index) => (
-            <View key={index} style={styles.timeBadge}>
-              <Ionicons name="time-outline" size={16} color="#9CA3AF" />
-              <Text style={styles.timeText}>{formatTime(time)}</Text>
-            </View>
-          ))}
+          {medication.times.map((time, index) => {
+            const isNextDose = time === nextDose;
+            const today = new Date().toISOString().split('T')[0];
+            const takenDate = medication.takenDates?.find(td => td.date === today);
+            const isTaken = takenDate?.times.includes(time);
+            
+            return (
+              <View 
+                key={index} 
+                style={[
+                  styles.timeBadge,
+                  isNextDose && styles.nextDoseBadge,
+                  isTaken && styles.takenTimeBadge
+                ]}
+              >
+                <Ionicons 
+                  name={isTaken ? "checkmark-circle" : "time-outline"} 
+                  size={16} 
+                  color={isTaken ? "#059669" : isNextDose ? "#3B82F6" : "#9CA3AF"} 
+                />
+                <Text style={[
+                  styles.timeText,
+                  isNextDose && styles.nextDoseText,
+                  isTaken && styles.takenTimeText
+                ]}>
+                  {formatTime(time)}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       </View>
     </TouchableOpacity>
@@ -594,5 +643,42 @@ const styles = StyleSheet.create({
   selectedLanguageItemText: {
     fontWeight: 'bold',
     color: '#3B82F6',
+  },
+  progressContainer: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  nextDoseBadge: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  takenTimeBadge: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  nextDoseText: {
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  takenTimeText: {
+    color: '#059669',
   },
 }); 

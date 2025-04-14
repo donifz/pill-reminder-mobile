@@ -14,14 +14,18 @@
       "bundleIdentifier": "com.yourcompany.medicationtracker",
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification"
+          "remote-notification",
+          "fetch",
+          "processing"
         ]
       }
     },
     "android": {
       "package": "com.yourcompany.medicationtracker",
       "permissions": [
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
       ],
       "buildType": "apk"
     },
@@ -29,7 +33,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-background-fetch",
+        {
+          "startOnBoot": true
+        }
+      ]
     ]
   }
 }
