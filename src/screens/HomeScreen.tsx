@@ -28,13 +28,13 @@ const MedicationCard: React.FC<{
   isGuardian?: boolean;
   userName?: string;
 }> = ({ medication, onPress, onTake, onDelete, isGuardian, userName }) => {
-  const formatTime = (timeStr: string) => {
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
+const formatTime = (timeStr: string) => {
+  const [hours, minutes] = timeStr.split(':');
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};
 
   return (
     <TouchableOpacity
@@ -259,7 +259,7 @@ export const HomeScreen: React.FC = () => {
                   <Text style={styles.guardianName}>{guardianMed.user.name}'s Medications</Text>
                   {guardianMed.medications.map((medication) => (
                     <MedicationCard
-                      key={medication.id}
+                key={medication.id} 
                       medication={medication}
                       onPress={() => navigation.navigate('MedicationDetails', { id: medication.id })}
                       onTake={() => handleTakeMedication(medication.id)}

@@ -9,9 +9,9 @@ export const config = {
 
 export const getApiUrl = () => {
   // In production builds, always use production URL
-  if (process.env.NODE_ENV === 'production') {
-    return config.production.apiUrl;
+  if (__DEV__) {
+    return config.development.apiUrl;
   }
-  // In development, use development URL
-  return config.development.apiUrl;
+  // In production, use production URL
+  return config.production.apiUrl;
 }; 
