@@ -53,12 +53,19 @@ const MedicationCard: React.FC<{
     return sortedTimes.find(time => time > currentTime) || sortedTimes[0];
   };
 
+  const areAllDosesTakenToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayTaken = medication.takenDates?.find(td => td.date === today);
+    return todayTaken?.times.length === medication.times.length;
+  };
+
   const progress = getProgress();
   const nextDose = getNextDose();
+  const allDosesTakenToday = areAllDosesTakenToday();
 
   return (
     <TouchableOpacity
-      style={[styles.medicationCard, medication.taken && styles.medicationCardTaken]}
+      style={[styles.medicationCard, allDosesTakenToday && styles.medicationCardTaken]}
       onPress={onPress}
     >
       <View style={styles.medicationCardContent}>
@@ -75,13 +82,13 @@ const MedicationCard: React.FC<{
           <View style={styles.medicationCardActions}>
             {onTake && (
               <TouchableOpacity
-                style={[styles.actionButton, medication.taken && styles.actionButtonTaken]}
+                style={[styles.actionButton, allDosesTakenToday && styles.actionButtonTaken]}
                 onPress={onTake}
               >
                 <Ionicons
                   name="checkmark-circle"
                   size={24}
-                  color={medication.taken ? '#059669' : '#9CA3AF'}
+                  color={allDosesTakenToday ? '#059669' : '#9CA3AF'}
                 />
               </TouchableOpacity>
             )}
