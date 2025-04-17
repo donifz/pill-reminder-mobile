@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
+import axios from 'axios';
 
 // Define background task name
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND_NOTIFICATION_TASK';
@@ -140,6 +141,24 @@ class NotificationService {
     }
   }
 
+  async registerFcmToken() {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        return;
+      }
+
+      const token = await Notifications.getExpoPushTokenAsync({
+        projectId: '355ce659-e8ea-410b-aad2-f611ef000471',
+      });
+
+      // Send token to backend
+      await axios.post('/api/notifications/fcm-token', { token: token.data });
+    } catch (error) {
+      console.error('Error registering FCM token:', error);
+    }
+  }
+
   async setupNotificationListeners() {
     // Create notification channel for Android with high priority
     if (Platform.OS === 'android') {
@@ -154,6 +173,9 @@ class NotificationService {
         showBadge: true,
       });
     }
+
+    // Register FCM token
+    await this.registerFcmToken();
 
     // Handle notifications when app is in foreground
     const subscription = Notifications.addNotificationReceivedListener(
