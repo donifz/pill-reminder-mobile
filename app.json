@@ -11,7 +11,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.medicationtracker",
+      "bundleIdentifier": "com.dooron.medicationtracker",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification",
@@ -21,13 +21,16 @@
       }
     },
     "android": {
-      "package": "com.yourcompany.medicationtracker",
+      "package": "com.dooron.medicationtracker",
       "permissions": [
         "NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
       ],
-      "buildType": "apk"
+      "buildType": "apk",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,6 +43,12 @@
           "startOnBoot": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "355ce659-e8ea-410b-aad2-f611ef000471"
+      }
+    },
+    "owner": "donifz"
   }
 }

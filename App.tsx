@@ -6,8 +6,10 @@ import './src/services/axios';
 import { notificationService } from './src/services/notificationService';
 import { initializeLanguage } from './src/i18n';
 import './src/i18n';
+import registerNNPushToken from 'native-notify';
 
 export default function App() {
+  registerNNPushToken(29362, 'T4ZZ7Dr9rTcFVXG4QHiRyp');
   useEffect(() => {
     const setup = async () => {
       try {
