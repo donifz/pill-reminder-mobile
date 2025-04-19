@@ -75,6 +75,16 @@ export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               thumbColor={notificationsEnabled ? '#2563EB' : '#9CA3AF'}
             />
           </View>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('NotificationTest')}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="notifications" size={24} color="#3B82F6" />
+              <Text style={styles.settingText}>Test Notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>

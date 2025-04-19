@@ -8,6 +8,7 @@ import { MedicationDetailsScreen } from '../screens/MedicationDetailsScreen';
 import { GuardianManagementScreen } from '../screens/GuardianManagementScreen';
 import { AcceptGuardianInviteScreen } from '../screens/AcceptGuardianInviteScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import NotificationTestScreen from '../screens/NotificationTestScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from './types';
 
@@ -30,6 +31,7 @@ export const AppNavigator = () => {
           <Stack.Screen name="GuardianManagement" component={GuardianManagementScreen} />
           <Stack.Screen name="AcceptGuardianInvite" component={AcceptGuardianInviteScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="NotificationTest" component={NotificationTestScreen} />
         </>
       ) : (
         <>

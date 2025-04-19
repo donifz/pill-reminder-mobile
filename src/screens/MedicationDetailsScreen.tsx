@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { Medication, medicationService } from '../services/medicationService';
-import { notificationService } from '../services/notificationService';
+import NotificationService from '../services/notificationService';
 import { format, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +22,10 @@ type MedicationDetailsScreenProps = {
   route: RouteProp<RootStackParamList, 'MedicationDetails'>;
 };
 
+type EditMedicationParams = {
+  medication: Medication;
+};
+
 const formatTime = (timeStr: string) => {
   const [hours, minutes] = timeStr.split(':');
   const hour = parseInt(hours, 10);
@@ -29,6 +33,8 @@ const formatTime = (timeStr: string) => {
   const hour12 = hour % 12 || 12;
   return `${hour12}:${minutes} ${ampm}`;
 };
+
+const notificationService = NotificationService.getInstance();
 
 export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetailsScreenProps) => {
   const { id } = route.params;
@@ -53,9 +59,41 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
     }
   };
 
+  const setupNotifications = async () => {
+    if (!medication) return;
+    
+    try {
+      const hasPermission = await notificationService.requestPermission();
+      if (hasPermission) {
+        console.log('Setting up notifications for medication:', medication.name);
+        // Cancel any existing notifications first
+        await notificationService.cancelMedicationReminder(medication.id);
+        
+        // Schedule notifications for each time
+        for (const time of medication.times) {
+          console.log(`Scheduling notification for ${medication.name} at ${time}`);
+          const identifier = await notificationService.scheduleMedicationReminder(
+            medication.id,
+            medication.name,
+            time
+          );
+          console.log(`Notification scheduled with ID: ${identifier}`);
+        }
+        setNotificationsEnabled(true);
+      } else {
+        console.log('Notification permission not granted');
+        setNotificationsEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error setting up notifications:', error);
+      setError('Failed to set up medication reminders');
+      setNotificationsEnabled(false);
+    }
+  };
+
   useEffect(() => {
     fetchMedication();
-    setupNotifications();
+    
     return () => {
       if (medication) {
         notificationService.cancelMedicationReminder(medication.id);
@@ -69,39 +107,24 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
     }
   }, [medication]);
 
-  const setupNotifications = async () => {
-    try {
-      const hasPermission = await notificationService.requestPermission();
-      if (hasPermission && medication) {
-        // Schedule notifications for each time
-        for (const time of medication.times) {
-          await notificationService.scheduleMedicationReminder(
-            medication.id,
-            medication.name,
-            time
-          );
-        }
-      }
-    } catch (error) {
-      console.error('Error setting up notifications:', error);
-      setError('Failed to set up medication reminders');
-    }
-  };
-
   const toggleNotifications = async (enabled: boolean) => {
     try {
       if (enabled) {
         if (medication) {
+          console.log('Enabling notifications for medication:', medication.name);
           for (const time of medication.times) {
-            await notificationService.scheduleMedicationReminder(
+            console.log(`Scheduling notification for ${medication.name} at ${time}`);
+            const identifier = await notificationService.scheduleMedicationReminder(
               medication.id,
               medication.name,
               time
             );
+            console.log(`Notification scheduled with ID: ${identifier}`);
           }
         }
       } else {
         if (medication) {
+          console.log('Disabling notifications for medication:', medication.name);
           await notificationService.cancelMedicationReminder(medication.id);
         }
       }
@@ -134,6 +157,43 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
     } catch (error) {
       console.error('Error deleting medication:', error);
       setError('Error deleting medication. Please try again later.');
+    }
+  };
+
+  const handleNotificationPermission = async () => {
+    try {
+      const hasPermission = await notificationService.requestPermission();
+      if (hasPermission) {
+        setNotificationsEnabled(true);
+      }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+    }
+  };
+
+  const handleDisableNotifications = async () => {
+    try {
+      if (medication) {
+        await notificationService.cancelMedicationReminder(medication.id);
+        setNotificationsEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error disabling notifications:', error);
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    try {
+      if (medication) {
+        await notificationService.scheduleMedicationReminder(
+          medication.id,
+          medication.name,
+          medication.times[0]
+        );
+        setNotificationsEnabled(true);
+      }
+    } catch (error) {
+      console.error('Error enabling notifications:', error);
     }
   };
 
@@ -183,133 +243,35 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
             <Ionicons name="arrow-back" size={16} color="#6B7280" />
             <StyledText className="text-gray-500 ml-1">{t('medications.backToMedications')}</StyledText>
           </StyledTouchableOpacity>
-
-          {error && (
-            <StyledView className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-              <StyledText className="text-red-600 text-center">{error}</StyledText>
+          
+          <StyledView className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <StyledView className="flex-row justify-between items-center mb-4">
+              <StyledText className="text-xl font-semibold">{medication.name}</StyledText>
+              <StyledView className="flex-row">
+                <StyledTouchableOpacity
+                  onPress={() => navigation.navigate('EditMedication', { id: medication.id })}
+                  className="mr-4"
+                >
+                  <Ionicons name="pencil" size={20} color="#3B82F6" />
+                </StyledTouchableOpacity>
+                <StyledTouchableOpacity onPress={handleDeleteMedication}>
+                  <Ionicons name="trash" size={20} color="#EF4444" />
+                </StyledTouchableOpacity>
+              </StyledView>
             </StyledView>
-          )}
-
-          <StyledView className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <StyledText className="text-2xl font-bold text-gray-900 mb-4">
-              {medication.name}
-            </StyledText>
             
-            <StyledView className="flex-row">
-              <StyledView className="flex-1 space-y-4">
-                <StyledView>
-                  <StyledText className="text-sm font-medium text-gray-500">{t('medications.dose')}</StyledText>
-                  <StyledText className="text-lg text-gray-900">{medication.dose}</StyledText>
-                </StyledView>
-                
-                <StyledView>
-                  <StyledText className="text-sm font-medium text-gray-500">{t('medications.times')}</StyledText>
-                  <StyledView className="flex-row items-center">
-                    <Ionicons name="time-outline" size={20} color="#9CA3AF" />
-                    <StyledText className="text-lg text-gray-900 ml-2">
-                      {medication.times.map(formatTime).join(', ')}
-                    </StyledText>
-                  </StyledView>
-                </StyledView>
-
-                <StyledView>
-                  <StyledText className="text-sm font-medium text-gray-500">{t('medications.duration')}</StyledText>
-                  <StyledView className="flex-row items-center">
-                    <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
-                    <StyledText className="text-lg text-gray-900 ml-2">
-                      {format(new Date(medication.startDate), 'MMM d, yyyy')} - {format(new Date(medication.endDate), 'MMM d, yyyy')}
-                    </StyledText>
-                  </StyledView>
-                </StyledView>
-              </StyledView>
-
-              <StyledView className="flex-1">
-                <StyledText className="text-sm font-medium text-gray-500 mb-4">{t('medications.progress')}</StyledText>
-                <StyledView className="bg-gray-100 rounded-lg p-4">
-                  <StyledView className="items-center">
-                    <StyledText className="text-3xl font-bold text-blue-600">
-                      {getProgress()}%
-                    </StyledText>
-                    <StyledText className="text-sm text-gray-500">{t('common.completed')}</StyledText>
-                  </StyledView>
-                </StyledView>
-              </StyledView>
+            <StyledView className="mb-4">
+              <StyledText className="text-gray-600">{t('medications.dose')}: {medication.dose}</StyledText>
+              <StyledText className="text-gray-600">
+                {t('medications.times')}: {medication.times.map(formatTime).join(', ')}
+              </StyledText>
+              <StyledText className="text-gray-600">
+                {t('medications.duration')}: {medication.duration} {t('medications.days')}
+              </StyledText>
             </StyledView>
-          </StyledView>
-
-          <StyledView className="bg-white rounded-2xl shadow-lg p-6">
-            <StyledText className="text-xl font-semibold text-gray-900 mb-6">{t('medications.calendar')}</StyledText>
-            <StyledView className="flex-row flex-wrap justify-between">
-              {days.map((day) => {
-                const isToday = isSameDay(day, new Date());
-                const takenTimes = getTakenTimesForDate(day);
-                const dayKey = `day-${format(day, 'yyyy-MM-dd')}`;
-                
-                return (
-                  <StyledView
-                    key={dayKey}
-                    className={`w-[14%] aspect-square p-2 rounded-lg items-center justify-center mb-2
-                      ${isToday ? 'border-2 border-blue-500' : ''}
-                      ${takenTimes.length > 0 ? 'bg-green-50' : 'bg-gray-50'}`}
-                  >
-                    <StyledText className="text-sm font-medium text-gray-900">
-                      {format(day, 'd')}
-                    </StyledText>
-                    <StyledText className="text-xs text-gray-500">
-                      {format(day, 'MMM')}
-                    </StyledText>
-                    {takenTimes.length > 0 ? (
-                      <StyledText className="text-xs text-green-600">
-                        {takenTimes.length}/{medication.times.length}
-                      </StyledText>
-                    ) : (
-                      <Ionicons name="close-circle" size={20} color="#D1D5DB" />
-                    )}
-                  </StyledView>
-                );
-              })}
-            </StyledView>
-          </StyledView>
-
-          <StyledView className="mt-6 mb-4">
-            <StyledText className="text-lg font-semibold text-gray-900 mb-4">{t('medications.todaysSchedule')}</StyledText>
-            <StyledView className="space-y-3">
-              {medication.times.map((time) => {
-                const isTaken = isTimeTaken(new Date(), time);
-                return (
-                  <StyledTouchableOpacity
-                    key={time}
-                    onPress={() => handleTakeMedication(time)}
-                    className={`flex-row items-center justify-between p-4 rounded-xl ${
-                      isTaken ? 'bg-green-50' : 'bg-blue-50'
-                    }`}
-                  >
-                    <StyledView className="flex-row items-center">
-                      <Ionicons 
-                        name={isTaken ? "checkmark-circle" : "time-outline"} 
-                        size={24} 
-                        color={isTaken ? "#22C55E" : "#3B82F6"} 
-                      />
-                      <StyledText className={`ml-3 text-lg font-medium ${
-                        isTaken ? 'text-green-600' : 'text-blue-600'
-                      }`}>
-                        {formatTime(time)}
-                      </StyledText>
-                    </StyledView>
-                    <StyledText className={`text-sm ${
-                      isTaken ? 'text-green-600' : 'text-blue-600'
-                    }`}>
-                      {isTaken ? t('common.taken') : t('common.takeNow')}
-                    </StyledText>
-                  </StyledTouchableOpacity>
-                );
-              })}
-            </StyledView>
-          </StyledView>
-
-          <StyledView className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <StyledView className="flex-row items-center justify-between mb-4">
-              <StyledText className="text-lg font-semibold text-gray-900">{t('medications.reminders')}</StyledText>
+            
+            <StyledView className="flex-row justify-between items-center">
+              <StyledText className="text-gray-600">{t('medications.notifications')}</StyledText>
               <Switch
                 value={notificationsEnabled}
                 onValueChange={toggleNotifications}
@@ -317,21 +279,61 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
                 thumbColor={notificationsEnabled ? '#2563EB' : '#9CA3AF'}
               />
             </StyledView>
-            <StyledText className="text-sm text-gray-500">
-              {notificationsEnabled 
-                ? t('medications.notificationsEnabled')
-                : t('medications.notificationsDisabled')}
+          </StyledView>
+          
+          <StyledView className="bg-white rounded-lg p-4 shadow-sm">
+            <StyledText className="text-lg font-semibold mb-4">{t('medications.progress')}</StyledText>
+            <StyledView className="h-2 bg-gray-200 rounded-full mb-2">
+              <StyledView
+                className="h-2 bg-blue-500 rounded-full"
+                style={{ width: `${getProgress()}%` }}
+              />
+            </StyledView>
+            <StyledText className="text-gray-600 text-center">
+              {getProgress()}% {t('medications.complete')}
             </StyledText>
           </StyledView>
-
-          <StyledTouchableOpacity
-            onPress={handleDeleteMedication}
-            className="py-4 rounded-xl bg-red-100 mb-4"
-          >
-            <StyledText className="text-red-600 text-center font-semibold">
-              {t('medications.delete')}
-            </StyledText>
-          </StyledTouchableOpacity>
+          
+          <StyledView className="mt-4">
+            <StyledText className="text-lg font-semibold mb-4">{t('medications.schedule')}</StyledText>
+            <StyledView className="bg-white rounded-lg p-4 shadow-sm">
+              {days.map((date) => (
+                <StyledView key={date.toISOString()} className="mb-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0 last:mb-0">
+                  <StyledView className="flex-row justify-between items-center mb-2">
+                    <StyledText className="text-gray-900 font-medium">
+                      {format(date, 'EEEE')}
+                    </StyledText>
+                    <StyledText className="text-gray-500">
+                      {format(date, 'MMMM d')}
+                    </StyledText>
+                  </StyledView>
+                  <StyledView className="flex-row flex-wrap gap-2">
+                    {medication.times.map((time) => (
+                      <StyledTouchableOpacity
+                        key={time}
+                        onPress={() => handleTakeMedication(time)}
+                        className={`px-4 py-2 rounded-lg ${
+                          isTimeTaken(date, time)
+                            ? 'bg-green-50 border border-green-200'
+                            : 'bg-gray-50 border border-gray-200'
+                        }`}
+                      >
+                        <StyledText
+                          className={
+                            isTimeTaken(date, time)
+                              ? 'text-green-700 font-medium'
+                              : 'text-gray-700'
+                          }
+                        >
+                          {formatTime(time)}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    ))}
+                  </StyledView>
+                </StyledView>
+              ))}
+            </StyledView>
+          </StyledView>
         </StyledView>
       </StyledScrollView>
     </StyledSafeAreaView>

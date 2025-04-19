@@ -87,6 +87,9 @@ export const ru = {
     guardianMedications: 'Лекарства опекуна',
     noGuardianMedications: 'Нет лекарств опекуна',
     guardiansMedications: 'лекарства',
+    notifications: 'Уведомления',
+    complete: 'завершено',
+    days: 'дней',
   },
   guardian: {
     title: 'Управление опекунами',

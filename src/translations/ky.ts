@@ -87,6 +87,9 @@ export const ky = {
     guardianMedications: 'Көзөмөлчү дарылары',
     noGuardianMedications: 'Көзөмөлчү дарылары жок',
     guardiansMedications: ' дарылары',
+    notifications: 'Эскертмелер',
+    complete: 'аяктады',
+    days: 'күн',
   },
   guardian: {
     title: 'Көзөмөлчүлөрдү башкаруу',

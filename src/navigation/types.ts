@@ -8,4 +8,5 @@ export type RootStackParamList = {
   GuardianManagement: undefined;
   AcceptGuardianInvite: { token: string };
   Settings: undefined;
+  NotificationTest: undefined;
 }; 
