@@ -101,17 +101,15 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
     };
   }, [id]);
 
-  useEffect(() => {
-    if (medication) {
-      setupNotifications();
-    }
-  }, [medication]);
-
   const toggleNotifications = async (enabled: boolean) => {
     try {
       if (enabled) {
         if (medication) {
           console.log('Enabling notifications for medication:', medication.name);
+          // Cancel any existing notifications first
+          await notificationService.cancelMedicationReminder(medication.id);
+          
+          // Schedule notifications for each time
           for (const time of medication.times) {
             console.log(`Scheduling notification for ${medication.name} at ${time}`);
             const identifier = await notificationService.scheduleMedicationReminder(
@@ -195,6 +193,19 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
     } catch (error) {
       console.error('Error enabling notifications:', error);
     }
+  };
+
+  const isToday = (date: Date) => {
+    return isSameDay(date, new Date());
+  };
+
+  const formatDate = (date: Date) => {
+    const weekday = format(date, 'EEEE');
+    const monthDay = format(date, 'MMMM d');
+    return {
+      weekday: t(`common.weekdays.${weekday.toLowerCase()}`),
+      monthDay: t(`common.months.${format(date, 'MMMM').toLowerCase()}`) + ' ' + format(date, 'd')
+    };
   };
 
   if (loading || !medication) {
@@ -301,28 +312,33 @@ export const MedicationDetailsScreen = ({ navigation, route }: MedicationDetails
                 <StyledView key={date.toISOString()} className="mb-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0 last:mb-0">
                   <StyledView className="flex-row justify-between items-center mb-2">
                     <StyledText className="text-gray-900 font-medium">
-                      {format(date, 'EEEE')}
+                      {formatDate(date).weekday}
                     </StyledText>
                     <StyledText className="text-gray-500">
-                      {format(date, 'MMMM d')}
+                      {formatDate(date).monthDay}
                     </StyledText>
                   </StyledView>
                   <StyledView className="flex-row flex-wrap gap-2">
                     {medication.times.map((time) => (
                       <StyledTouchableOpacity
                         key={time}
-                        onPress={() => handleTakeMedication(time)}
+                        onPress={() => isToday(date) ? handleTakeMedication(time) : null}
                         className={`px-4 py-2 rounded-lg ${
                           isTimeTaken(date, time)
                             ? 'bg-green-50 border border-green-200'
-                            : 'bg-gray-50 border border-gray-200'
+                            : isToday(date)
+                            ? 'bg-gray-50 border border-gray-200'
+                            : 'bg-gray-100 border border-gray-200 opacity-50'
                         }`}
+                        disabled={!isToday(date)}
                       >
                         <StyledText
                           className={
                             isTimeTaken(date, time)
                               ? 'text-green-700 font-medium'
-                              : 'text-gray-700'
+                              : isToday(date)
+                              ? 'text-gray-700'
+                              : 'text-gray-500'
                           }
                         >
                           {formatTime(time)}

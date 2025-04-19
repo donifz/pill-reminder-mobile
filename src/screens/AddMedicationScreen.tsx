@@ -6,18 +6,22 @@ import { RootStackParamList } from '../navigation/types';
 import { medicationService } from '../services/medicationService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDays } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
+const StyledSafeAreaView = styled(SafeAreaView);
 
 type AddMedicationScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'AddMedication'>;
 };
 
 export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) => {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [dose, setDose] = useState('');
   const [times, setTimes] = useState<string[]>(['09:00']);
@@ -75,7 +79,7 @@ export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) =>
 
   const handleSubmit = async () => {
     if (!name || !dose || times.length === 0 || !duration) {
-      setError('Please fill in all fields');
+      setError(t('common.fillAllFields'));
       return;
     }
 
@@ -109,7 +113,7 @@ export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) =>
       setError(
         err.response?.data?.message ||
         err.message ||
-        'Failed to add medication'
+        t('medications.saveError')
       );
     } finally {
       setLoading(false);
@@ -117,159 +121,169 @@ export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) =>
   };
 
   return (
-    <StyledScrollView className="flex-1 bg-gray-50">
-      <StyledView className="p-4">
-        <StyledView className="mb-8">
-          <StyledText className="text-3xl font-bold text-gray-900">
-            Add New Medication
-          </StyledText>
-          <StyledText className="text-gray-600 mt-2">
-            Enter medication details below
-          </StyledText>
-        </StyledView>
-
-        {error && (
-          <StyledView className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <StyledText className="text-red-600 text-center">{error}</StyledText>
-          </StyledView>
-        )}
-
-        <StyledView className="space-y-4">
-          <StyledView>
-            <StyledText className="text-sm font-semibold text-gray-700 mb-1">
-              Pill Name
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <StyledScrollView className="flex-1">
+        <StyledView className="px-4 pt-6">
+          <StyledView className="mb-4">
+            <StyledTouchableOpacity
+              onPress={() => navigation.goBack()}
+              className="flex-row items-center mb-6"
+            >
+              <StyledText className="text-gray-500">
+                {t('common.back')}
+              </StyledText>
+            </StyledTouchableOpacity>
+            <StyledText className="text-3xl font-bold text-gray-900">
+              {t('medications.addMedication')}
             </StyledText>
-            <StyledTextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter medication name"
-              className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900"
-              placeholderTextColor="#9CA3AF"
-            />
-          </StyledView>
-
-          <StyledView>
-            <StyledText className="text-sm font-semibold text-gray-700 mb-1">
-              Dose
+            <StyledText className="text-gray-600 mt-2">
+              {t('medications.enterDetails')}
             </StyledText>
-            <StyledTextInput
-              value={dose}
-              onChangeText={setDose}
-              placeholder="e.g. 500mg"
-              className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900"
-              placeholderTextColor="#9CA3AF"
-            />
           </StyledView>
 
-          <StyledView>
-            <StyledView className="flex-row justify-between items-center mb-2">
-              <StyledText className="text-sm font-semibold text-gray-700">
-                Times
+          {error && (
+            <StyledView className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <StyledText className="text-red-600 text-center">{error}</StyledText>
+            </StyledView>
+          )}
+
+          <StyledView className="space-y-4">
+            <StyledView>
+              <StyledText className="text-sm font-semibold text-gray-700 mb-1">
+                {t('medications.medicationName')}
+              </StyledText>
+              <StyledTextInput
+                value={name}
+                onChangeText={setName}
+                placeholder={t('medications.enterMedicationName')}
+                className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900"
+                placeholderTextColor="#9CA3AF"
+              />
+            </StyledView>
+
+            <StyledView>
+              <StyledText className="text-sm font-semibold text-gray-700 mb-1">
+                {t('medications.dose')}
+              </StyledText>
+              <StyledTextInput
+                value={dose}
+                onChangeText={setDose}
+                placeholder={t('medications.enterDose')}
+                className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900"
+                placeholderTextColor="#9CA3AF"
+              />
+            </StyledView>
+
+            <StyledView>
+              <StyledView className="flex-row justify-between items-center mb-2">
+                <StyledText className="text-sm font-semibold text-gray-700">
+                  {t('medications.times')}
+                </StyledText>
+                <StyledTouchableOpacity
+                  onPress={handleAddTime}
+                  className="flex-row items-center"
+                >
+                  <StyledText className="text-blue-600 font-medium">
+                    {t('medications.addTime')}
+                  </StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
+
+              {times.map((time, index) => (
+                <StyledView key={index} className="flex-row items-center mb-2">
+                  <StyledTouchableOpacity
+                    onPress={() => showTimePickerForIndex(index)}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl mr-2"
+                  >
+                    <StyledText className="text-gray-900">
+                      {time}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                  {times.length > 1 && (
+                    <StyledTouchableOpacity
+                      onPress={() => handleRemoveTime(index)}
+                      className="p-2"
+                    >
+                      <StyledText className="text-gray-400 text-xl">×</StyledText>
+                    </StyledTouchableOpacity>
+                  )}
+                </StyledView>
+              ))}
+            </StyledView>
+
+            <StyledView>
+              <StyledText className="text-sm font-semibold text-gray-700 mb-1">
+                {t('medications.startDate')}
               </StyledText>
               <StyledTouchableOpacity
-                onPress={handleAddTime}
-                className="flex-row items-center"
+                onPress={() => setShowDatePicker(true)}
+                className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
               >
-                <StyledText className="text-blue-600 font-medium">
-                  + Add Time
+                <StyledText className="text-gray-900">
+                  {startDate.toLocaleDateString()}
                 </StyledText>
               </StyledTouchableOpacity>
             </StyledView>
 
-            {times.map((time, index) => (
-              <StyledView key={index} className="flex-row items-center mb-2">
-                <StyledTouchableOpacity
-                  onPress={() => showTimePickerForIndex(index)}
-                  className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl mr-2"
-                >
-                  <StyledText className="text-gray-900">
-                    {time}
-                  </StyledText>
-                </StyledTouchableOpacity>
-                {times.length > 1 && (
-                  <StyledTouchableOpacity
-                    onPress={() => handleRemoveTime(index)}
-                    className="p-2"
-                  >
-                    <StyledText className="text-gray-400 text-xl">×</StyledText>
-                  </StyledTouchableOpacity>
-                )}
-              </StyledView>
-            ))}
-          </StyledView>
+            <StyledView>
+              <StyledText className="text-sm font-semibold text-gray-700 mb-1">
+                {t('medications.durationDays')}
+              </StyledText>
+              <StyledTextInput
+                value={duration}
+                onChangeText={setDuration}
+                keyboardType="numeric"
+                className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900"
+                placeholderTextColor="#9CA3AF"
+              />
+              <StyledText className="mt-2 text-sm text-gray-500">
+                {t('medications.endDate')}: {addDays(startDate, parseInt(duration) - 1).toLocaleDateString()}
+              </StyledText>
+            </StyledView>
 
-          <StyledView>
-            <StyledText className="text-sm font-semibold text-gray-700 mb-1">
-              Start Date
-            </StyledText>
+            {showTimePicker && selectedTimeIndex !== null && (
+              <DateTimePicker
+                value={new Date(`2000-01-01T${times[selectedTimeIndex]}`)}
+                mode="time"
+                is24Hour={true}
+                onChange={(event, date) => handleTimeChange(selectedTimeIndex, date)}
+              />
+            )}
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                minimumDate={new Date()}
+                onChange={handleDateChange}
+              />
+            )}
+
             <StyledTouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl"
+              onPress={handleSubmit}
+              disabled={loading}
+              className={`bg-blue-600 py-4 rounded-xl mt-6 ${loading ? 'opacity-50' : ''}`}
             >
-              <StyledText className="text-gray-900">
-                {startDate.toLocaleDateString()}
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <StyledText className="text-white font-semibold text-center">
+                  {t('medications.save')}
+                </StyledText>
+              )}
+            </StyledTouchableOpacity>
+
+            <StyledTouchableOpacity
+              onPress={() => navigation.goBack()}
+              className="mt-4"
+            >
+              <StyledText className="text-blue-600 text-center">
+                {t('common.cancel')}
               </StyledText>
             </StyledTouchableOpacity>
           </StyledView>
-
-          <StyledView>
-            <StyledText className="text-sm font-semibold text-gray-700 mb-1">
-              Duration (days)
-            </StyledText>
-            <StyledTextInput
-              value={duration}
-              onChangeText={setDuration}
-              keyboardType="numeric"
-              className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900"
-              placeholderTextColor="#9CA3AF"
-            />
-            <StyledText className="mt-2 text-sm text-gray-500">
-              End date: {addDays(startDate, parseInt(duration) - 1).toLocaleDateString()}
-            </StyledText>
-          </StyledView>
-
-          {showTimePicker && selectedTimeIndex !== null && (
-            <DateTimePicker
-              value={new Date(`2000-01-01T${times[selectedTimeIndex]}`)}
-              mode="time"
-              is24Hour={true}
-              onChange={(event, date) => handleTimeChange(selectedTimeIndex, date)}
-            />
-          )}
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={startDate}
-              mode="date"
-              minimumDate={new Date()}
-              onChange={handleDateChange}
-            />
-          )}
-
-          <StyledTouchableOpacity
-            onPress={handleSubmit}
-            disabled={loading}
-            className={`bg-blue-600 py-4 rounded-xl mt-6 ${loading ? 'opacity-50' : ''}`}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <StyledText className="text-white font-semibold text-center">
-                Save Medication
-              </StyledText>
-            )}
-          </StyledTouchableOpacity>
-
-          <StyledTouchableOpacity
-            onPress={() => navigation.goBack()}
-            className="mt-4"
-          >
-            <StyledText className="text-blue-600 text-center">
-              Cancel
-            </StyledText>
-          </StyledTouchableOpacity>
         </StyledView>
-      </StyledView>
-    </StyledScrollView>
+      </StyledScrollView>
+    </StyledSafeAreaView>
   );
 }; 
