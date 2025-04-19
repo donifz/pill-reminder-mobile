@@ -111,12 +111,15 @@ export const en = {
     notificationsDisabled: 'Notifications are disabled',
     myMedications: 'My Medications',
     guardianMedications: 'Guardian Medications',
-    noGuardianMedications: 'No guardian medications available',
+    noGuardianMedications: 'No guardian medications found',
     guardiansMedications: "'s Medications",
     notifications: 'Notifications',
     complete: 'complete',
     days: 'days',
-    previous: 'Previous'
+    previous: 'Previous',
+    addFirstMedication: 'Add your first medication',
+    overallProgress: '{progress}% overall progress',
+    nextDose: 'Next dose'
   },
   guardian: {
     title: 'Guardian Management',

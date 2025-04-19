@@ -6,6 +6,8 @@ import axios from 'axios';
 import { getApiUrl } from '../config';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../translations/i18n';
 
 // Check if running in simulator
 const isSimulator = Constants.isDevice === false;
@@ -41,6 +43,7 @@ class NotificationService {
   private responseListener: any = null;
   private isSimulator: boolean;
   private fcmToken: string | null = null;
+  private t: any;
 
   private constructor() {
     this.isSimulator = isSimulator;
@@ -293,8 +296,8 @@ class NotificationService {
       // For simulator, we'll schedule a local notification that will appear immediately
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Medication Reminder (Simulator)',
-          body: `Time to take your ${medicationName}`,
+          title: i18n.t('notifications.reminder'),
+          body: i18n.t('notifications.timeToTake') + ` ${medicationName}`,
           data: { medicationId, time },
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -329,8 +332,8 @@ class NotificationService {
       // Schedule the notification
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Medication Reminder',
-          body: `Time to take your ${medicationName}`,
+          title: i18n.t('notifications.reminder'),
+          body: i18n.t('notifications.timeToTake') + ` ${medicationName}`,
           data: { medicationId, time },
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,

@@ -31,6 +31,8 @@ const MedicationCard: React.FC<{
   isGuardian?: boolean;
   userName?: string;
 }> = ({ medication, onPress, onTake, onDelete, isGuardian, userName }) => {
+  const { t } = useTranslation();
+
   const formatTime = (timeStr: string) => {
     const [hours, minutes] = timeStr.split(':');
     const hour = parseInt(hours, 10);
@@ -105,7 +107,9 @@ const MedicationCard: React.FC<{
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
-          <Text style={styles.progressText}>{progress}% overall progress</Text>
+          <Text style={styles.progressText}>
+            {t('medications.overallProgress', { progress })}
+          </Text>
         </View>
 
         <View style={styles.timesContainer}>
@@ -226,14 +230,14 @@ export const HomeScreen: React.FC = () => {
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>
-        No {activeTab === 'user' ? 'medications' : 'guardian medications'} found
+        {activeTab === 'user' ? t('medications.noMedications') : t('medications.noGuardianMedications')}
       </Text>
       {activeTab === 'user' && (
         <TouchableOpacity
           style={styles.addFirstButton}
           onPress={() => navigation.navigate('AddMedication')}
         >
-          <Text style={styles.addFirstButtonText}>Add your first medication</Text>
+          <Text style={styles.addFirstButtonText}>{t('medications.addFirstMedication')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -251,10 +255,15 @@ export const HomeScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{t('common.welcome')}</Text>
-          {user && (
-            <Text style={styles.userName}>{t('common.hello')}, {user.name}</Text>
-          )}
+          <View style={styles.userInfo}>
+            <Ionicons name="person-circle-outline" size={28} color="#3B82F6" />
+            {user && (
+              <View style={styles.userTextContainer}>
+                <Text style={styles.userName}>{user.name}</Text>
+                <Text style={styles.userEmail}>{user.email}</Text>
+              </View>
+            )}
+          </View>
         </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
@@ -421,11 +430,25 @@ const styles = StyleSheet.create({
   },
   headerTitleContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  userTextContainer: {
+    flexDirection: 'column',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '500',
     color: '#111827',
+  },
+  userEmail: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -532,11 +555,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
-  },
-  userName: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
   },
   medicationCardActions: {
     flexDirection: 'row',
