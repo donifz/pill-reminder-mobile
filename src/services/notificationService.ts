@@ -61,7 +61,7 @@ class NotificationService {
     return NotificationService.instance;
   }
 
-  private async setupNotificationListeners() {
+  public async setupNotificationListeners() {
     // Request permission for notifications
     await this.requestPermission();
 
@@ -214,33 +214,43 @@ class NotificationService {
       // Get the auth token
       const authToken = await AsyncStorage.getItem('token');
       if (!authToken) {
-        console.log('No auth token found, FCM token registration may fail');
+        console.log('No auth token found, skipping FCM token registration until user is authenticated');
+        return token;
       }
       
-      const response = await axios.post(
-        `${API_URL}/notifications/fcm-token`,
-        { token },
-        {
-          timeout: 10000,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': authToken ? `Bearer ${authToken}` : '',
-          },
-          validateStatus: (status: number): boolean => status >= 200 && status < 300,
-        }
-      );
+      try {
+        const response = await axios.post(
+          `${API_URL}/notifications/fcm-token`,
+          { token },
+          {
+            timeout: 10000,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+            },
+            validateStatus: (status: number): boolean => status >= 200 && status < 300,
+          }
+        );
 
-      console.log('FCM token registration response:', response.status);
+        console.log('FCM token registration response:', response.status);
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          console.log('User not authenticated, FCM token will be registered after login');
+        } else {
+          console.error('Error registering FCM token:', error);
+          if (axios.isAxiosError(error)) {
+            console.error('Axios error details:', {
+              status: error.response?.status,
+              data: error.response?.data,
+              message: error.message,
+            });
+          }
+        }
+      }
+
       return token;
     } catch (error) {
-      console.error('Error registering FCM token:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Axios error details:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          message: error.message,
-        });
-      }
+      console.error('Error in registerFcmToken:', error);
       throw error;
     }
   }
@@ -253,7 +263,14 @@ class NotificationService {
 
     try {
       console.log('Initializing notification service...');
+      
+      // Clean up any existing listeners first
+      this.cleanup();
+      
+      // Configure Android channel first
       await this.configureAndroidChannel();
+      
+      // Register background task
       await this.registerBackgroundTask();
       
       // Request permission and register FCM token on initialization
@@ -266,7 +283,8 @@ class NotificationService {
       }
     } catch (error) {
       console.error('Error initializing notification service:', error);
-      throw error;
+      // Don't throw the error, just log it and continue
+      // This prevents the app from crashing if notification setup fails
     }
   }
 
@@ -377,11 +395,17 @@ class NotificationService {
   }
 
   public cleanup() {
-    if (this.notificationListener) {
-      Notifications.removeNotificationSubscription(this.notificationListener);
-    }
-    if (this.responseListener) {
-      Notifications.removeNotificationSubscription(this.responseListener);
+    try {
+      if (this.notificationListener) {
+        Notifications.removeNotificationSubscription(this.notificationListener);
+        this.notificationListener = null;
+      }
+      if (this.responseListener) {
+        Notifications.removeNotificationSubscription(this.responseListener);
+        this.responseListener = null;
+      }
+    } catch (error) {
+      console.error('Error cleaning up notification listeners:', error);
     }
   }
 }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService, User, LoginData, RegisterData } from '../services/authService';
+import PostLoginService from '../services/postLoginService';
 
 type AuthContextType = {
   user: User | null;
@@ -33,6 +34,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (data: LoginData) => {
     const loggedInUser = await authService.login(data);
     setUser(loggedInUser);
+    
+    // Handle post-login tasks
+    try {
+      const postLoginService = PostLoginService.getInstance();
+      await postLoginService.handlePostLoginTasks();
+    } catch (error) {
+      console.error('Error in post-login tasks:', error);
+    }
   };
 
   const register = async (data: RegisterData) => {

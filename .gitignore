@@ -89,3 +89,7 @@ project.xcworkspace
 *.swo
 *~
 *.log
+
+/android
+
+/ios
