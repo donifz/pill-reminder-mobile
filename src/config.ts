@@ -1,7 +1,7 @@
 export const config = {
   development: {
     // Use your machine's local IP address instead of localhost
-    apiUrl: 'http://13.126.213.177:3000', // Your actual local IP address
+    apiUrl: 'http://192.168.31.187:3001', // Your actual local IP address
   },
   production: {
     apiUrl: 'http://13.126.213.177:3000',

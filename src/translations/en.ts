@@ -19,6 +19,12 @@ export const en = {
     takeNow: 'Take Now',
     logout: 'Logout',
     user: 'User',
+    search: 'Search',
+    seeAll: 'See All',
+    retry: 'Retry',
+    comingSoon: 'Coming Soon',
+    miles: 'miles',
+    today: 'Today',
     weekdays: {
       monday: 'Monday',
       tuesday: 'Tuesday',
@@ -43,6 +49,13 @@ export const en = {
       december: 'December'
     }
   },
+  navigation: {
+    home: 'Home',
+    schedule: 'Schedule',
+    medicine: 'Medicine',
+    doctors: 'Doctors',
+    profile: 'Profile',
+  },
   languages: {
     english: 'English',
     russian: 'Russian',
@@ -53,6 +66,20 @@ export const en = {
     selectLanguage: 'Select Language',
     theme: 'Theme',
     notifications: 'Notifications',
+  },
+  medicine: {
+    title: 'Medicine',
+    coming_soon: 'Medicine catalog coming soon',
+  },
+  doctors: {
+    title: 'Doctors',
+    coming_soon: 'Doctor directory coming soon',
+    searchTitle: 'Find Doctors',
+    searchPlaceholder: 'Enter doctor name',
+    specialization: 'Specialization',
+    specializationPlaceholder: 'Enter specialization',
+    noResultsFound: 'No doctors found matching your search',
+    searchForDoctors: 'Search for doctors by name or specialization',
   },
   auth: {
     signIn: 'Sign in',
@@ -119,7 +146,52 @@ export const en = {
     previous: 'Previous',
     addFirstMedication: 'Add your first medication',
     overallProgress: '{progress}% overall progress',
-    nextDose: 'Next dose'
+    nextDose: 'Next dose',
+    yourMedications: 'Your Medications'
+  },
+  home: {
+    welcomeBack: 'Welcome back',
+    searchPlaceholder: 'Search doctors, medicines...',
+    medicalCategories: 'Medical Categories',
+  },
+  medicines: {
+    searchTitle: 'Find Medicines',
+    searchPlaceholder: 'Enter medicine name',
+    genericName: 'Generic Name',
+    genericNamePlaceholder: 'Enter generic name',
+    noResultsFound: 'No medicines found matching your search',
+    searchForMedicines: 'Search for medicines by name or generic name',
+    available: 'Available',
+    unavailable: 'Unavailable',
+    inStock: 'In Stock',
+    outOfStock: 'Out of Stock',
+  },
+  pharmacies: {
+    nearbyPharmacies: 'Nearby Pharmacies',
+    nearby: 'Nearby Pharmacies',
+    noPharmaciesFound: 'No pharmacies found in your area',
+    locationPermissionDenied: 'Location permission is required to show nearby pharmacies',
+    locationPermissionRequired: 'We need your location to find nearby pharmacies',
+    grantPermission: 'Grant Permission',
+    errorLoading: 'Error loading pharmacies',
+    errorLoadingMedicines: 'Error loading medicines at this pharmacy',
+    open: 'Open',
+    closed: 'Closed',
+    availableMedicines: 'Available Medicines',
+    noMedicinesFound: 'No medicines found at this pharmacy',
+    directions: 'Directions',
+    call: 'Call',
+    mapsIntegrationSoon: 'Maps integration coming soon',
+    callIntegrationSoon: 'Call integration coming soon',
+  },
+  categories: {
+    dentist: 'Dentist',
+    cardio: 'Cardio',
+    neuro: 'Neuro',
+    eye: 'Eye',
+  },
+  appointments: {
+    upcoming: 'Upcoming Appointment',
   },
   guardian: {
     title: 'Guardian Management',

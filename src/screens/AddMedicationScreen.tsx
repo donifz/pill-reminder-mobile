@@ -89,14 +89,25 @@ export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) =>
     try {
       const start = startDate;
       const end = addDays(start, parseInt(duration) - 1);
-
-      await medicationService.createMedication({
+      
+      const medication = {
         name,
         dose,
         times: times.sort(),
         duration: parseInt(duration),
         startDate: formatDate(start),
         endDate: formatDate(end),
+      };
+      
+      console.log('Creating medication with data:', medication);
+
+      const result = await medicationService.createMedication(medication);
+      console.log('Medication created successfully:', {
+        id: result.id,
+        name: result.name,
+        startDate: result.startDate,
+        endDate: result.endDate,
+        times: result.times
       });
       
       // Reset form
@@ -106,10 +117,17 @@ export const AddMedicationScreen = ({ navigation }: AddMedicationScreenProps) =>
       setDuration('7');
       setStartDate(new Date());
       
-      // Go back to previous screen
-      navigation.goBack();
+      // Force refresh and navigate directly to PillReminder screen to see the new medication
+      console.log('Navigating to PillReminder screen after medication creation');
+      setTimeout(() => {
+        navigation.navigate('PillReminder');
+      }, 500);
     } catch (err: any) {
-      console.error('Add medication error:', err);
+      console.error('Add medication error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
       setError(
         err.response?.data?.message ||
         err.message ||

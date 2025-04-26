@@ -67,7 +67,21 @@ class MedicationService {
         }
       });
       
-      console.log('Medications response:', response.data);
+      console.log('Medications response:', {
+        userMedicationsCount: response.data.userMedications?.length || 0,
+        guardianMedicationsCount: response.data.guardianMedications?.length || 0,
+        firstMedicationName: response.data.userMedications?.[0]?.name || 'None'
+      });
+      
+      // Make sure medications have essential properties
+      if (response.data.userMedications) {
+        response.data.userMedications = response.data.userMedications.map(med => ({
+          ...med,
+          times: med.times || [],
+          takenDates: med.takenDates || []
+        }));
+      }
+      
       return response.data;
     } catch (error: any) {
       console.error('Get medications error:', {
@@ -167,6 +181,44 @@ class MedicationService {
       });
     } catch (error: any) {
       console.error('Delete medication error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw error;
+    }
+  }
+
+  async takeDose(medicationId: string, time: string): Promise<Medication> {
+    try {
+      const token = await this.getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      console.log(`Taking dose for medication ${medicationId} at time ${time} on date ${today}`);
+      
+      const response = await axios.post<Medication>(
+        `${API_URL}/medications/${medicationId}/take`, 
+        { time },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      console.log('Take dose response:', {
+        updatedMedication: response.data.name,
+        takenDatesCount: response.data.takenDates?.length || 0
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Take dose error:', {
+        medicationId,
+        time,
         message: error.message,
         response: error.response?.data,
         status: error.response?.status

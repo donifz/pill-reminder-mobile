@@ -7,11 +7,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { languages, changeLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledSafeAreaView = styled(SafeAreaView);
 
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -61,7 +63,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps) => {
   };
 
   return (
-    <StyledView className="flex-1 bg-gray-50">
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       <StyledView className="flex-1 px-4 py-8">
         {/* Language Selector Button */}
         <StyledView className="flex-row justify-end mb-4">
@@ -183,6 +185,6 @@ export const LoginScreen = ({ navigation }: LoginScreenProps) => {
           </StyledView>
         </StyledView>
       </Modal>
-    </StyledView>
+    </StyledSafeAreaView>
   );
 }; 

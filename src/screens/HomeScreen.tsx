@@ -1,16 +1,17 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  SafeAreaView,
   StyleSheet,
   ScrollView,
   Alert,
   Modal,
+  Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -20,6 +21,9 @@ import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { languages, changeLanguage } from '../i18n';
+import { doctorService, pharmacyService, Pharmacy, Doctor } from '../services/api';
+import * as Location from 'expo-location';
+import { TodaysMedicationsCard } from '../components/TodaysMedicationsCard';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -156,31 +160,124 @@ export const HomeScreen: React.FC = () => {
     medications: Medication[];
   }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'user' | 'guardian'>('user');
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user, logout } = useAuth();
   const { t, i18n } = useTranslation();
+  const [searchText, setSearchText] = useState('');
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
+  const [upcomingAppointment, setUpcomingAppointment] = useState<{
+    doctor: Doctor;
+    date: string;
+    time: string;
+  } | null>(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
-  const loadMedications = useCallback(async () => {
+  const loadMedications = async () => {
     try {
       setLoading(true);
-      const response = await medicationService.getMedications();
-      setUserMedications(response.userMedications);
-      setGuardianMedications(response.guardianMedications);
+      console.log('Loading medications from API...');
+      
+      // Get the latest medications from the API
+      const result = await medicationService.getMedications();
+      console.log(`API returned ${result.userMedications?.length || 0} user medications`);
+      
+      if (result.userMedications) {
+        console.log('Medication IDs received:', result.userMedications.map(m => m.id).join(', '));
+      }
+      
+      setUserMedications(result.userMedications || []);
+      setGuardianMedications(result.guardianMedications || []);
+      
+      const todaysCount = getTodaysMedications().length;
+      console.log(`Found ${todaysCount} medications for today after updating state`);
     } catch (error) {
       console.error('Error loading medications:', error);
-      Alert.alert('Error', 'Failed to load medications');
+      Alert.alert(
+        t('common.error'),
+        t('medications.loadError')
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadMedications();
-    }, [loadMedications])
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get user's location
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        
+        if (status !== 'granted') {
+          setLocationPermissionDenied(true);
+          setLoading(false);
+          return;
+        }
+        
+        const location = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = location.coords;
+        
+        // Fetch nearby pharmacies
+        const nearbyPharmacies = await pharmacyService.getNearby(latitude, longitude, 2000);
+        
+        // Calculate distances for each pharmacy
+        const pharmaciesWithDistance = nearbyPharmacies.map(pharmacy => {
+          // Calculate distance in miles or kilometers (simplified version)
+          const distance = calculateDistance(
+            latitude, 
+            longitude, 
+            pharmacy.location?.latitude || 0,
+            pharmacy.location?.longitude || 0
+          );
+          
+          return {
+            ...pharmacy,
+            distance: `${distance.toFixed(1)} miles away`
+          };
+        });
+        
+        setPharmacies(pharmaciesWithDistance);
+        
+        // Fetch upcoming appointment
+        const appointment = await doctorService.getUpcomingAppointment();
+        setUpcomingAppointment(appointment);
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  // Simple function to calculate distance between two coordinates (in miles)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    if ((lat1 === lat2) && (lon1 === lon2)) {
+      return 0;
+    }
+    
+    const radlat1 = Math.PI * lat1/180;
+    const radlat2 = Math.PI * lat2/180;
+    const theta = lon1-lon2;
+    const radtheta = Math.PI * theta/180;
+    
+    let dist = Math.sin(radlat1) * Math.sin(radlat2) + 
+               Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+    
+    if (dist > 1) {
+      dist = 1;
+    }
+    
+    dist = Math.acos(dist);
+    dist = dist * 180/Math.PI;
+    dist = dist * 60 * 1.1515; // Miles
+    
+    return dist;
+  };
 
   const handleLogout = async () => {
     try {
@@ -197,9 +294,11 @@ export const HomeScreen: React.FC = () => {
 
   const handleTakeMedication = async (id: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
       const currentTime = new Date().toLocaleTimeString('en-US', { hour12: false });
-      await medicationService.toggleTaken(id, today, currentTime);
+      
+      // Use the new takeDose function from medicationService
+      await medicationService.takeDose(id, currentTime);
+      
       loadMedications();
     } catch (error) {
       console.error('Error taking medication:', error);
@@ -227,20 +326,120 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  const handleSearch = () => {
+    if (searchText.trim()) {
+      navigation.navigate('MedicineSearch');
+    }
+  };
+
+  const handleCategoryPress = (category: string) => {
+    navigation.navigate('MedicalCategory', { category });
+  };
+
+  const handlePharmacyPress = (pharmacy: Pharmacy) => {
+    navigation.navigate('PharmacyDetails', {
+      id: pharmacy.id,
+      name: pharmacy.name
+    });
+  };
+
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
+      <Ionicons name="medical-outline" size={64} color="#CBD5E1" />
       <Text style={styles.emptyText}>
-        {activeTab === 'user' ? t('medications.noMedications') : t('medications.noGuardianMedications')}
+        {t('medications.noMedications')}
       </Text>
-      {activeTab === 'user' && (
-        <TouchableOpacity
-          style={styles.addFirstButton}
-          onPress={() => navigation.navigate('AddMedication')}
-        >
-          <Text style={styles.addFirstButtonText}>{t('medications.addFirstMedication')}</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={styles.addFirstButton}
+        onPress={() => navigation.navigate('AddMedication')}
+      >
+        <Text style={styles.addFirstButtonText}>{t('medications.addFirstMedication')}</Text>
+      </TouchableOpacity>
     </View>
+  );
+
+  const getTodaysMedications = useCallback(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    
+    console.log(`Looking for medications for today (${todayStr})`);
+    console.log(`User medications count: ${userMedications.length}`);
+    
+    // Filter user medications for today
+    const userMedsForToday = userMedications.filter((medication) => {
+      console.log(`Checking medication: ${medication.name} (ID: ${medication.id})`);
+      
+      if (!medication.times || medication.times.length === 0) {
+        console.log(`- No times scheduled for ${medication.name}`);
+        return false;
+      }
+      
+      // Check if the medication is active for today (between start and end dates)
+      const startDate = new Date(medication.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(medication.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      
+      const isActive = startDate <= today && today <= endDate;
+      
+      if (!isActive) {
+        console.log(`- Medication ${medication.name} is not active for today (startDate: ${medication.startDate}, endDate: ${medication.endDate})`);
+        return false;
+      }
+      
+      console.log(`- Medication ${medication.name} is active for today with ${medication.times.length} scheduled times`);
+      
+      // Check if any doses were taken today
+      const takenToday = medication.takenDates?.some(
+        takenDate => takenDate.date === todayStr
+      );
+      
+      if (takenToday) {
+        console.log(`- Medication ${medication.name} has doses taken today`);
+      }
+      
+      return isActive;
+    });
+    
+    console.log(`Found ${userMedsForToday.length} user medications for today`);
+    
+    // Process guardian medications if needed
+    // ... existing code for guardian medications ...
+    
+    return userMedsForToday;
+  }, [userMedications, guardianMedications]);
+
+  const todaysMedications = getTodaysMedications();
+
+  // Load medications when component mounts or when language changes
+  useEffect(() => {
+    loadMedications();
+  }, [i18n.language]);
+
+  // Refresh data when screen comes into focus (e.g., after adding medication)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('HomeScreen focused - loading medications...');
+      
+      // Add a small delay to make sure the effect runs after navigation is complete
+      const timer = setTimeout(() => {
+        console.log('HomeScreen: Executing delayed loadMedications after navigation');
+        loadMedications().then(() => {
+          console.log('HomeScreen: Medications loaded after focus');
+          
+          // Force re-execution of getTodaysMedications after data is loaded
+          const todaysMeds = getTodaysMedications();
+          console.log(`HomeScreen: After focus, found ${todaysMeds.length} medications for today`);
+          if (todaysMeds.length > 0) {
+            console.log('Today\'s medications:', todaysMeds.map(m => m.name));
+          }
+        });
+      }, 500); // Increased delay to ensure API calls complete
+      
+      return () => clearTimeout(timer);
+    }, [])
   );
 
   if (loading) {
@@ -252,52 +451,168 @@ export const HomeScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <View style={styles.headerTitleContainer}>
-          <View style={styles.userInfo}>
-            <Ionicons name="person-circle-outline" size={28} color="#3B82F6" />
-            {user && (
-              <View style={styles.userTextContainer}>
-                <Text style={styles.userName}>{user.name}</Text>
-                <Text style={styles.userEmail}>{user.email}</Text>
-              </View>
-            )}
+        <View style={styles.userInfoContainer}>
+          <View style={styles.userAvatar}>
+            <Text style={styles.userInitials}>
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.welcomeText}>{t('home.welcomeBack')}</Text>
+            <Text style={styles.userName}>{user?.name || 'User'}</Text>
           </View>
         </View>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setShowLanguageModal(true)}
-          >
-            <Ionicons name="language-outline" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.navigate('GuardianManagement')}
-          >
-            <Ionicons name="people-outline" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={handleLogout}
-          >
-            <Ionicons name="log-out-outline" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.notificationButton}>
+          <Ionicons name="notifications-outline" size={24} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
-      {/* Language Selection Modal */}
+      <ScrollView style={styles.scrollContainer}>
+        <TouchableOpacity 
+          style={styles.searchBar}
+          onPress={() => navigation.navigate('MedicineSearch')}
+        >
+          <Ionicons name="search" size={20} color="#94A3B8" />
+          <Text style={styles.searchPlaceholder}>{t('home.searchPlaceholder')}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>{t('home.medicalCategories')}</Text>
+          <View style={styles.categoriesContainer}>
+            <TouchableOpacity 
+              style={styles.categoryItem}
+              onPress={() => handleCategoryPress('dentist')}
+            >
+              <View style={[styles.categoryIcon, { backgroundColor: '#E0F2FE' }]}>
+                <Ionicons name="medical-outline" size={24} color="#0EA5E9" />
+              </View>
+              <Text style={styles.categoryText}>{t('categories.dentist')}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.categoryItem}
+              onPress={() => handleCategoryPress('cardio')}
+            >
+              <View style={[styles.categoryIcon, { backgroundColor: '#FECDD3' }]}>
+                <Ionicons name="heart-outline" size={24} color="#E11D48" />
+              </View>
+              <Text style={styles.categoryText}>{t('categories.cardio')}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.categoryItem}
+              onPress={() => handleCategoryPress('neuro')}
+            >
+              <View style={[styles.categoryIcon, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="medkit-outline" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.categoryText}>{t('categories.neuro')}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.categoryItem}
+              onPress={() => handleCategoryPress('eye')}
+            >
+              <View style={[styles.categoryIcon, { backgroundColor: '#E0E7FF' }]}>
+                <Ionicons name="eye-outline" size={24} color="#6366F1" />
+              </View>
+              <Text style={styles.categoryText}>{t('categories.eye')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Next Medication */}
+        {todaysMedications.length > 0 && (
+          <TodaysMedicationsCard medication={todaysMedications[0]} />
+        )}
+
+        {upcomingAppointment && (
+          <View style={styles.appointmentCard}>
+            <Text style={styles.appointmentTitle}>{t('appointments.upcoming')}</Text>
+            <View style={styles.appointmentDetails}>
+              <View style={styles.doctorSection}>
+                <View style={styles.doctorAvatarContainer}>
+                  {upcomingAppointment.doctor.imageUrl ? (
+                    <Image 
+                      source={{ uri: upcomingAppointment.doctor.imageUrl }} 
+                      style={styles.doctorAvatar} 
+                    />
+                  ) : (
+                    <View style={styles.doctorAvatarPlaceholder}>
+                      <Ionicons name="person" size={24} color="#94A3B8" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.doctorName}>Dr. {upcomingAppointment.doctor.name}</Text>
+              </View>
+              <View style={styles.appointmentTimeContainer}>
+                <Ionicons name="calendar-outline" size={20} color="#3B82F6" />
+                <Text style={styles.appointmentTime}>
+                  {upcomingAppointment.date}, {upcomingAppointment.time}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderContainer}>
+            <Text style={styles.sectionTitle}>{t('pharmacies.nearby')}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('PharmacyList')}>
+              <Text style={styles.seeAllText}>{t('common.seeAll')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {pharmacies.length > 0 ? (
+            pharmacies.slice(0, 2).map((pharmacy, index) => (
+              <TouchableOpacity 
+                key={pharmacy.id} 
+                style={styles.pharmacyCard}
+                onPress={() => handlePharmacyPress(pharmacy)}
+              >
+                <View style={styles.pharmacyIconContainer}>
+                  <Ionicons name="medkit-outline" size={24} color="#3B82F6" />
+                </View>
+                <View style={styles.pharmacyInfo}>
+                  <Text style={styles.pharmacyName}>{pharmacy.name}</Text>
+                  <Text style={styles.pharmacyDistance}>{pharmacy.distance}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            ))
+          ) : locationPermissionDenied ? (
+            <View style={styles.locationPermissionContainer}>
+              <Text style={styles.locationPermissionText}>
+                {t('pharmacies.locationPermissionRequired')}
+              </Text>
+              <TouchableOpacity 
+                style={styles.locationPermissionButton}
+                onPress={async () => {
+                  const { status } = await Location.requestForegroundPermissionsAsync();
+                  if (status === 'granted') {
+                    setLocationPermissionDenied(false);
+                    // Re-fetch data
+                    navigation.replace('Home');
+                  }
+                }}
+              >
+                <Text style={styles.locationPermissionButtonText}>
+                  {t('pharmacies.grantPermission')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ActivityIndicator size="small" color="#3B82F6" />
+          )}
+        </View>
+      </ScrollView>
+
       <Modal
         visible={showLanguageModal}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowLanguageModal(false)}
       >
         <View style={styles.modalOverlay}>
@@ -314,20 +629,18 @@ export const HomeScreen: React.FC = () => {
                   key={lang.code}
                   style={[
                     styles.languageItem,
-                    i18n.language === lang.code && styles.selectedLanguageItem,
+                    i18n.language === lang.code && styles.selectedLanguageItem
                   ]}
                   onPress={() => handleLanguageChange(lang.code)}
                 >
-                  <Text
-                    style={[
-                      styles.languageItemText,
-                      i18n.language === lang.code && styles.selectedLanguageItemText,
-                    ]}
-                  >
+                  <Text style={[
+                    styles.languageItemText,
+                    i18n.language === lang.code && styles.selectedLanguageItemText
+                  ]}>
                     {lang.name}
                   </Text>
                   {i18n.language === lang.code && (
-                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    <Ionicons name="checkmark" size={24} color="#3B82F6" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -335,79 +648,6 @@ export const HomeScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'user' && styles.activeTab]}
-          onPress={() => setActiveTab('user')}
-        >
-          <Text style={[styles.tabText, activeTab === 'user' && styles.activeTabText]}>
-            {t('medications.myMedications')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'guardian' && styles.activeTab]}
-          onPress={() => setActiveTab('guardian')}
-        >
-          <Text style={[styles.tabText, activeTab === 'guardian' && styles.activeTabText]}>
-            {t('medications.guardianMedications')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.contentContainer}>
-        {activeTab === 'user' ? (
-          <>
-            <View style={styles.addButtonContainer}>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => navigation.navigate('AddMedication')}
-              >
-                <Ionicons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.addButtonText}>{t('medications.addMedication')}</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={userMedications}
-              renderItem={({ item }) => (
-                <MedicationCard
-                  medication={item}
-                  onPress={() => navigation.navigate('MedicationDetails', { id: item.id })}
-                  onTake={() => handleTakeMedication(item.id)}
-                  onDelete={() => handleDeleteMedication(item.id)}
-                />
-              )}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContainer}
-              ListEmptyComponent={renderEmptyList}
-            />
-          </>
-        ) : (
-          <ScrollView style={styles.medicationList}>
-            {guardianMedications.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>{t('medications.noGuardianMedications')}</Text>
-              </View>
-            ) : (
-              guardianMedications.map((guardianMed) => (
-                <View key={guardianMed.user.id} style={styles.guardianSection}>
-                  <Text style={styles.guardianName}>{guardianMed.user.name} {t('medications.guardiansMedications', { name: guardianMed.user.name })}</Text>
-                  {guardianMed.medications.map((medication) => (
-                    <MedicationCard
-                      key={medication.id}
-                      medication={medication}
-                      onPress={() => navigation.navigate('MedicationDetails', { id: medication.id })}
-                      onTake={() => handleTakeMedication(medication.id)}
-                      isGuardian
-                      userName={guardianMed.user.name}
-                    />
-                  ))}
-                </View>
-              ))
-            )}
-          </ScrollView>
-        )}
-      </View>
     </SafeAreaView>
   );
 };
@@ -422,66 +662,224 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 12,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E2E8F0',
   },
-  headerTitleContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  userInfo: {
+  userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  userTextContainer: {
-    flexDirection: 'column',
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  userInitials: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  welcomeText: {
+    fontSize: 12,
+    color: '#64748B',
   },
   userName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#3B82F6',
-  },
-  tabText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  activeTabText: {
-    color: '#3B82F6',
     fontWeight: '600',
+    color: '#0F172A',
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    color: '#94A3B8',
+    fontSize: 16,
+  },
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginLeft: 16,
+    marginBottom: 12,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  categoryItem: {
+    alignItems: 'center',
+    width: '23%',
+  },
+  categoryIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  categoryText: {
+    fontSize: 14,
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  appointmentCard: {
+    backgroundColor: '#3B82F6',
+    marginHorizontal: 16,
+    marginBottom: 24,
+    borderRadius: 12,
+    padding: 16,
+  },
+  appointmentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  appointmentDetails: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+  },
+  doctorSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  doctorAvatarContainer: {
+    marginRight: 12,
+  },
+  doctorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  doctorAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doctorName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  appointmentTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  appointmentTime: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#64748B',
+  },
+  pharmacyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  pharmacyIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  pharmacyInfo: {
+    flex: 1,
+  },
+  pharmacyName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  pharmacyDistance: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  locationPermissionContainer: {
+    backgroundColor: '#FEF2F2',
+    marginHorizontal: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  locationPermissionText: {
+    fontSize: 14,
+    color: '#B91C1C',
+    marginBottom: 12,
+  },
+  locationPermissionButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  locationPermissionButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
   contentContainer: {
     flex: 1,

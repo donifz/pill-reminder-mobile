@@ -9,4 +9,10 @@ export type RootStackParamList = {
   AcceptGuardianInvite: { token: string };
   Settings: undefined;
   NotificationTest: undefined;
+  DoctorSearch: undefined;
+  MedicineSearch: undefined;
+  PharmacyDetails: { id: string, name: string };
+  MedicalCategory: { category: string };
+  PharmacyList: undefined;
+  PillReminder: undefined;
 }; 
