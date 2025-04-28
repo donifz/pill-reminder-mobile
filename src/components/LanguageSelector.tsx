@@ -40,7 +40,7 @@ export const LanguageSelector = ({showTitle=true}) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    padding: 0,
   },
   title: {
     fontSize: 18,
@@ -49,6 +49,7 @@ const styles = StyleSheet.create({
   },
   languageContainer: {
     flexDirection: 'row',
+    gap: 4,
     justifyContent: 'space-around',
   },
   languageButton: {

@@ -464,8 +464,11 @@ export const HomeScreen: React.FC = () => {
             <Text style={styles.userName}>{user?.name || 'User'}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Ionicons name="notifications-outline" size={24} color="#0F172A" />
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Ionicons name="settings-outline" size={24} color="#0F172A" />
         </TouchableOpacity>
       </View>
 

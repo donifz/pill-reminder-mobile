@@ -37,7 +37,123 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   }
 });
 
-class NotificationService {
+export interface NotificationSettings {
+  sound: string;
+  vibration: boolean;
+  snoozeTime: number; // in minutes
+  quietHours: {
+    enabled: boolean;
+    start: string; // HH:mm format
+    end: string; // HH:mm format
+  };
+}
+
+export class NotificationService {
+  private static readonly SETTINGS_KEY = '@notification_settings';
+  private static readonly SNOOZE_KEY = '@notification_snooze_';
+
+  static async getSettings(): Promise<NotificationSettings> {
+    const stored = await AsyncStorage.getItem(this.SETTINGS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    
+    return {
+      sound: 'default',
+      vibration: true,
+      snoozeTime: 15,
+      quietHours: {
+        enabled: false,
+        start: '22:00',
+        end: '07:00',
+      },
+    };
+  }
+
+  static async updateSettings(settings: Partial<NotificationSettings>): Promise<NotificationSettings> {
+    const current = await this.getSettings();
+    const updated = { ...current, ...settings };
+    await AsyncStorage.setItem(this.SETTINGS_KEY, JSON.stringify(updated));
+    return updated;
+  }
+
+  static async scheduleNotification(
+    title: string,
+    body: string,
+    trigger: Date,
+    settings: NotificationSettings
+  ): Promise<string> {
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: settings.sound,
+        vibrate: settings.vibration ? [0, 250, 250, 250] : null,
+      },
+      trigger: {
+        type: 'date',
+        date: trigger,
+      },
+    });
+    
+    return notificationId;
+  }
+
+  static async snoozeNotification(
+    notificationId: string,
+    minutes: number
+  ): Promise<void> {
+    const newTime = new Date(Date.now() + minutes * 60 * 1000);
+    await this.scheduleNotification(
+      'Snoozed Reminder',
+      'Time to take your medication',
+      newTime,
+      await this.getSettings()
+    );
+    
+    await AsyncStorage.setItem(
+      `${this.SNOOZE_KEY}${notificationId}`,
+      newTime.toISOString()
+    );
+  }
+
+  static async cancelNotification(notificationId: string): Promise<void> {
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await AsyncStorage.removeItem(`${this.SNOOZE_KEY}${notificationId}`);
+  }
+
+  static async isInQuietHours(): Promise<boolean> {
+    const settings = await this.getSettings();
+    if (!settings.quietHours.enabled) {
+      return false;
+    }
+    
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    const [startHour, startMinute] = settings.quietHours.start.split(':').map(Number);
+    const [endHour, endMinute] = settings.quietHours.end.split(':').map(Number);
+    
+    const startTime = startHour * 60 + startMinute;
+    const endTime = endHour * 60 + endMinute;
+    
+    if (startTime <= endTime) {
+      return currentTime >= startTime && currentTime <= endTime;
+    } else {
+      return currentTime >= startTime || currentTime <= endTime;
+    }
+  }
+
+  static async getAvailableSounds(): Promise<string[]> {
+    return [
+      'default',
+      'bell',
+      'chime',
+      'ding',
+      'notification',
+    ];
+  }
+
   private static instance: NotificationService;
   private notificationListener: any = null;
   private responseListener: any = null;
